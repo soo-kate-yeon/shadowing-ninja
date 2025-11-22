@@ -35,6 +35,22 @@ export async function GET(request: NextRequest) {
                 lang: 'en' // Default or extracted if available
             }));
 
+            // Debug logging
+            console.log('🎥 [Transcript API] Video:', videoId);
+            console.log('📊 [Transcript API] Segments received:', transcript.length);
+
+            const sampleSegments = transcript.slice(0, 3);
+            console.log('📝 [Transcript API] Sample segments:', sampleSegments);
+
+            const punctuationStats = {
+                withPeriod: transcript.filter((t: any) => /\.$/.test(t.text?.trim() || '')).length,
+                withQuestion: transcript.filter((t: any) => /\?$/.test(t.text?.trim() || '')).length,
+                withExclamation: transcript.filter((t: any) => /!$/.test(t.text?.trim() || '')).length,
+                withComma: transcript.filter((t: any) => /,$/.test(t.text?.trim() || '')).length,
+                noPunctuation: transcript.filter((t: any) => !/[.!?,;:]$/.test(t.text?.trim() || '')).length,
+            };
+            console.log('🔤 [Transcript API] Punctuation stats:', punctuationStats);
+
             return NextResponse.json({
                 success: true,
                 transcript,

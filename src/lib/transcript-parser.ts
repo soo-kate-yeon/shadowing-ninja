@@ -2,30 +2,39 @@ import { TranscriptItem, Sentence } from '@/types';
 
 /**
  * Parse transcript items and merge them into sentences
- * Sentences are split by punctuation marks (. ! ?)
+ * Sentences are split by:
+ * 1. Primary punctuation (. ! ?)
+ * 2. Secondary punctuation (, ; :)
+ * 3. Maximum length (150 characters)
+ * 4. Time gaps (2+ seconds)
+ * 5. Word count (15+ words)
  */
 export function parseTranscriptToSentences(transcriptItems: TranscriptItem[]): Sentence[] {
     const sentences: Sentence[] = [];
     let currentSentence = '';
     let currentStartTime = 0;
     let currentEndTime = 0;
+    let lastItemEndTime = 0;
 
-    transcriptItems.forEach((item, index) => {
-        // Skip items with no text
-        if (!item.text) return;
+    // Configuration
+    const MAX_SENTENCE_LENGTH = 150; // characters
+    const MAX_WORD_COUNT = 15; // words
+    const TIME_GAP_THRESHOLD = 2.0; // seconds
 
-        if (currentSentence === '') {
-            currentStartTime = item.start;
-        }
+    // Debug logging
+    console.log('🔍 [Transcript Parser] Starting to parse', transcriptItems.length, 'items');
 
-        currentSentence += (currentSentence ? ' ' : '') + item.text;
-        currentEndTime = item.start + item.duration;
+    let punctuationCount = 0;
+    let noPunctuationCount = 0;
+    const sampleItems = transcriptItems.slice(0, 5);
+    console.log('📝 [Transcript Parser] Sample items:', sampleItems.map(item => ({
+        text: item.text,
+        hasPunctuation: /[.!?]$/.test(item.text?.trim() || ''),
+        length: item.text?.length || 0
+    })));
 
-        // Check if sentence ends with punctuation
-        const endsWithPunctuation = /[.!?]$/.test(item.text.trim());
-        const isLastItem = index === transcriptItems.length - 1;
-
-        if (endsWithPunctuation || isLastItem) {
+    const createSentence = (reason: string, index: number) => {
+        if (currentSentence.trim()) {
             sentences.push({
                 id: crypto.randomUUID(),
                 text: currentSentence.trim(),
@@ -34,8 +43,77 @@ export function parseTranscriptToSentences(transcriptItems: TranscriptItem[]): S
                 highlights: [],
             });
 
+            if (sentences.length <= 3 || index === transcriptItems.length - 1) {
+                console.log(`✂️ [Transcript Parser] Sentence #${sentences.length} (${reason}):`, {
+                    length: currentSentence.trim().length,
+                    wordCount: currentSentence.trim().split(/\s+/).length,
+                    preview: currentSentence.trim().substring(0, 50) + '...'
+                });
+            }
+
             currentSentence = '';
         }
+    };
+
+    transcriptItems.forEach((item, index) => {
+        // Skip items with no text
+        if (!item.text) return;
+
+        // Initialize start time for new sentence
+        if (currentSentence === '') {
+            currentStartTime = item.start;
+        }
+
+        // Check for time gap (indicates natural pause/break)
+        const timeGap = lastItemEndTime > 0 ? item.start - lastItemEndTime : 0;
+        if (timeGap >= TIME_GAP_THRESHOLD && currentSentence !== '') {
+            createSentence('time gap', index);
+            currentStartTime = item.start;
+        }
+
+        // Add current item to sentence
+        currentSentence += (currentSentence ? ' ' : '') + item.text;
+        currentEndTime = item.start + item.duration;
+        lastItemEndTime = currentEndTime;
+
+        // Check various sentence-ending conditions
+        const text = item.text.trim();
+        const primaryPunctuation = /[.!?]$/.test(text);
+        const secondaryPunctuation = /[,;:]$/.test(text);
+        const isLastItem = index === transcriptItems.length - 1;
+        const currentLength = currentSentence.trim().length;
+        const currentWordCount = currentSentence.trim().split(/\s+/).length;
+
+        // Track punctuation stats
+        if (primaryPunctuation || secondaryPunctuation) punctuationCount++;
+        else noPunctuationCount++;
+
+        // Decision tree for sentence breaks
+        if (primaryPunctuation) {
+            // Always break on . ! ?
+            createSentence('primary punctuation', index);
+        } else if (secondaryPunctuation && currentLength > 50) {
+            // Break on , ; : if sentence is getting long
+            createSentence('secondary punctuation', index);
+        } else if (currentLength >= MAX_SENTENCE_LENGTH) {
+            // Force break if too long
+            createSentence('max length', index);
+        } else if (currentWordCount >= MAX_WORD_COUNT) {
+            // Force break if too many words
+            createSentence('max words', index);
+        } else if (isLastItem) {
+            // Always create sentence for last item
+            createSentence('last item', index);
+        }
+    });
+
+    console.log('📊 [Transcript Parser] Summary:', {
+        totalItems: transcriptItems.length,
+        sentencesCreated: sentences.length,
+        itemsWithPunctuation: punctuationCount,
+        itemsWithoutPunctuation: noPunctuationCount,
+        avgSentenceLength: Math.round(sentences.reduce((sum, s) => sum + s.text.length, 0) / sentences.length),
+        avgWordsPerSentence: Math.round(sentences.reduce((sum, s) => sum + s.text.split(/\s+/).length, 0) / sentences.length)
     });
 
     return sentences;

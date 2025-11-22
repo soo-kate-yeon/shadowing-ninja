@@ -113,12 +113,6 @@ export default function StudyPage() {
             <header className="border-b border-gray-200 bg-white">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => router.push('/')}
-                            className="text-gray-600 hover:text-gray-900"
-                        >
-                            ← Back
-                        </button>
                         <h1 className="text-xl font-bold text-gray-900">
                             {currentSession.videoTitle}
                         </h1>
@@ -127,21 +121,40 @@ export default function StudyPage() {
                         <button className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium">
                             Save
                         </button>
-                        <button className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium">
+                        <button
+                            onClick={() => router.push('/')}
+                            className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium"
+                        >
                             End
                         </button>
-                        <button
-                            onClick={() => {
-                                const phases: Array<'blind' | 'script' | 'shadowing'> = ['blind', 'script', 'shadowing'];
-                                const currentIndex = phases.indexOf(currentSession.currentPhase);
-                                if (currentIndex < phases.length - 1) {
-                                    handlePhaseChange(phases[currentIndex + 1]);
-                                }
-                            }}
-                            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
-                        >
-                            Next
-                        </button>
+                        <div className="flex items-center gap-2 ml-2">
+                            <button
+                                onClick={() => {
+                                    const phases: Array<'blind' | 'script' | 'shadowing'> = ['blind', 'script', 'shadowing'];
+                                    const currentIndex = phases.indexOf(currentSession.currentPhase);
+                                    if (currentIndex > 0) {
+                                        handlePhaseChange(phases[currentIndex - 1]);
+                                    }
+                                }}
+                                disabled={currentSession.currentPhase === 'blind'}
+                                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-200"
+                            >
+                                Back
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const phases: Array<'blind' | 'script' | 'shadowing'> = ['blind', 'script', 'shadowing'];
+                                    const currentIndex = phases.indexOf(currentSession.currentPhase);
+                                    if (currentIndex < phases.length - 1) {
+                                        handlePhaseChange(phases[currentIndex + 1]);
+                                    }
+                                }}
+                                disabled={currentSession.currentPhase === 'shadowing'}
+                                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600"
+                            >
+                                Next
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>

@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStudyStore } from '@/store/useStudyStore';
 import { extractVideoId } from '@/lib/transcript-parser';
+import VideoCard from '@/components/VideoCard';
+import SessionCard from '@/components/SessionCard';
+import HighlightCard from '@/components/HighlightCard';
+import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
   const router = useRouter();
@@ -44,134 +48,139 @@ export default function HomePage() {
   const inProgressSessions = sessions.filter(s => !s.isCompleted);
   const completedSessions = sessions.filter(s => s.isCompleted);
 
+  // Mock data for video list
+  const mockVideos = [
+    {
+      id: 1,
+      title: '로제가 인터뷰를 한다',
+      duration: '5:30',
+      description: '이 인터뷰는 투나잇쇼에서 로제가 인터뷰를 한건데 캐주얼한 영어와 발음이 비교적 쉽습니다',
+      thumbnailUrl: 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
+    },
+    {
+      id: 2,
+      title: '로제가 인터뷰를 한다',
+      duration: '5:30',
+      description: '이 인터뷰는 투나잇쇼에서 로제가 인터뷰를 한건데 캐주얼한 영어와 발음이 비교적 쉽습니다',
+      thumbnailUrl: 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
+    },
+    {
+      id: 3,
+      title: '로제가 인터뷰를 한다',
+      duration: '5:30',
+      description: '이 인터뷰는 투나잇쇼에서 로제가 인터뷰를 한건데 캐주얼한 영어와 발음이 비교적 쉽습니다',
+      thumbnailUrl: 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
+    <div className="min-h-screen bg-[#f5f5f5]">
+      {/* Header - Height 64px */}
+      <header className="h-[64px] bg-white border-b border-gray-200 fixed w-full top-0 z-50">
+        <div className="max-w-[1600px] mx-auto px-8 h-full flex items-center justify-between">
+          <h1 className="text-panel font-bold text-gray-900">
             ShadowingNinja
           </h1>
-          <button className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium">
-            Sign out
-          </button>
+          <div className="flex items-center gap-4">
+            <button className="text-body text-gray-600 hover:text-gray-900">
+              로그아웃
+            </button>
+            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left: Study Material */}
-          <div className="lg:col-span-2 space-y-6">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Study Material</h2>
-              <p className="text-gray-600">YouTube 영상으로 새로운 학습 세션을 시작하세요</p>
+      {/* Main Content */}
+      <main className="pt-[calc(64px+32px)] px-8 pb-8 max-w-[1600px] mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+          {/* Left Column: Learning Videos (3 columns) */}
+          <div className="lg:col-span-3 space-y-6">
+            <h2 className="text-section text-gray-900">학습할 영상</h2>
+
+            {/* Filter Buttons */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {['토크쇼', '영화', 'TV 시리즈', '인터뷰', '팟캐스트'].map((filter) => (
+                <Button
+                  key={filter}
+                  variant={filter === '토크쇼' ? 'default' : 'secondary'}
+                  size="sm"
+                  className={`text-caption whitespace-nowrap h-8 px-3 ${filter === '토크쇼' ? 'bg-gray-800 hover:bg-gray-900' : 'bg-white hover:bg-gray-100 text-gray-600'}`}
+                >
+                  {filter}
+                </Button>
+              ))}
             </div>
 
-            {/* Video URL Input */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                YouTube URL
-              </label>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateSession()}
+            {/* Video Grid - Vertical Stack */}
+            <div className="space-y-4">
+              {mockVideos.map((video) => (
+                <VideoCard
+                  key={video.id}
+                  title={video.title}
+                  duration={video.duration}
+                  description={video.description}
+                  thumbnailUrl={video.thumbnailUrl}
+                  onClick={() => { }}
                 />
-                <button
-                  onClick={handleCreateSession}
-                  disabled={isLoading || !videoUrl}
-                  className="px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-600 text-white font-medium rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  {isLoading ? '로딩 중...' : '시작하기'}
-                </button>
-              </div>
-              {error && (
-                <p className="mt-2 text-sm text-red-600">{error}</p>
-              )}
-            </div>
-
-            {/* Sample Videos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="aspect-video bg-gray-200 flex items-center justify-center">
-                    <span className="text-gray-400 text-sm">Video Thumbnail</span>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-gray-900 line-clamp-2">
-                        Sample Video Title {i}
-                      </h3>
-                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">20:34</span>
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      Sample description for the video content
-                    </p>
-                  </div>
-                </div>
               ))}
             </div>
           </div>
 
-          {/* Right: Sessions */}
-          <div className="space-y-6">
-            {/* In Progress */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">진행 중</h3>
-              {inProgressSessions.length === 0 ? (
-                <p className="text-sm text-gray-500">진행 중인 세션이 없습니다</p>
-              ) : (
-                <div className="space-y-3">
-                  {inProgressSessions.map((session) => (
-                    <div
-                      key={session.id}
-                      onClick={() => router.push(`/study/${session.videoId}`)}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50/50 cursor-pointer transition-colors"
-                    >
-                      <h4 className="font-medium text-gray-900 mb-1 line-clamp-1">
-                        {session.videoTitle}
-                      </h4>
-                      <p className="text-xs text-gray-500">
-                        {new Date(session.updatedAt).toLocaleDateString('ko-KR')}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* Middle Column: In Progress Sessions (5 columns) */}
+          <div className="lg:col-span-5 space-y-6 bg-gray-50/50 rounded-3xl p-6">
+            <div className="flex items-center gap-2">
+              <h2 className="text-section text-gray-900">학습 중인 영상</h2>
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
 
-            {/* Completed */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">완료</h3>
-              {completedSessions.length === 0 ? (
-                <p className="text-sm text-gray-500">완료된 세션이 없습니다</p>
-              ) : (
-                <div className="space-y-3">
-                  {completedSessions.map((session) => (
-                    <div
-                      key={session.id}
-                      onClick={() => router.push(`/study/${session.videoId}`)}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50/50 cursor-pointer transition-colors"
-                    >
-                      <h4 className="font-medium text-gray-900 mb-1 line-clamp-1">
-                        {session.videoTitle}
-                      </h4>
-                      <p className="text-xs text-gray-500">
-                        {new Date(session.updatedAt).toLocaleDateString('ko-KR')}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <SessionCard
+                  key={i}
+                  title="ROSÉ Reminisces on Her BLACKPINK Audition, Shows Jimmy How to Play the APT. Drinking Game"
+                  totalSentences={275}
+                  progress={40}
+                  timeLeft="23:00"
+                  thumbnailUrl="https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+                  onClick={() => { }}
+                />
+              ))}
             </div>
           </div>
+
+          {/* Right Column: Highlights (4 columns) */}
+          <div className="lg:col-span-4 space-y-6 bg-gray-50/50 rounded-3xl p-6">
+            <h2 className="text-section text-gray-900">하이라이트</h2>
+
+            {/* Featured Highlight */}
+            <div className="bg-gray-200 rounded-xl p-4 flex gap-3">
+              <div className="w-16 h-16 bg-gray-300 rounded-lg flex-shrink-0 overflow-hidden">
+                <img src="https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg" alt="Thumbnail" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-item-emphasized text-gray-900 line-clamp-3 text-sm">
+                  ROSÉ Reminisces on Her BLACKPINK Audition, Shows Jimmy How to Play the APT. Drinking Game
+                </h3>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <HighlightCard
+                  key={i}
+                  videoTitle="ROSÉ Reminisces on Her BLACKPINK Audition"
+                  highlightedSentence="유저가 세션 중에 하이라이팅한 문장 유저가 세션 중에 하이라이팅한 문장"
+                  userCaption="이건 왜 이 문장을 하이라이팅했는지에 대한 유저의 캡션"
+                />
+              ))}
+            </div>
+          </div>
+
         </div>
       </main>
     </div>
