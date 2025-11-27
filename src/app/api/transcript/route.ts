@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Innertube } from 'youtubei.js';
+import { parseTranscriptToSentences } from '@/lib/transcript-parser';
 
 export async function GET(request: NextRequest) {
     try {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
             }
 
             // Map to expected format
-            const transcript = transcriptData.transcript.content.body.initial_segments.map((segment: any) => ({
+            const transcriptItems = transcriptData.transcript.content.body.initial_segments.map((segment: any) => ({
                 text: segment.snippet.text,
                 start: Number(segment.start_ms) / 1000,
                 duration: Number(segment.end_ms - segment.start_ms) / 1000,
@@ -35,25 +36,17 @@ export async function GET(request: NextRequest) {
                 lang: 'en' // Default or extracted if available
             }));
 
+            // Parse into sentences
+            const sentences = parseTranscriptToSentences(transcriptItems);
+
             // Debug logging
             console.log('🎥 [Transcript API] Video:', videoId);
-            console.log('📊 [Transcript API] Segments received:', transcript.length);
-
-            const sampleSegments = transcript.slice(0, 3);
-            console.log('📝 [Transcript API] Sample segments:', sampleSegments);
-
-            const punctuationStats = {
-                withPeriod: transcript.filter((t: any) => /\.$/.test(t.text?.trim() || '')).length,
-                withQuestion: transcript.filter((t: any) => /\?$/.test(t.text?.trim() || '')).length,
-                withExclamation: transcript.filter((t: any) => /!$/.test(t.text?.trim() || '')).length,
-                withComma: transcript.filter((t: any) => /,$/.test(t.text?.trim() || '')).length,
-                noPunctuation: transcript.filter((t: any) => !/[.!?,;:]$/.test(t.text?.trim() || '')).length,
-            };
-            console.log('🔤 [Transcript API] Punctuation stats:', punctuationStats);
+            console.log('📊 [Transcript API] Segments received:', transcriptItems.length);
+            console.log('� [Transcript API] Sentences parsed:', sentences.length);
 
             return NextResponse.json({
                 success: true,
-                transcript,
+                sentences,
             });
         } catch (transcriptError) {
             console.error('Transcript not available:', transcriptError);

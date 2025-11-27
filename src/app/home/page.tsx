@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SessionCard from '@/components/SessionCard';
@@ -9,61 +9,43 @@ import HighlightCard from '@/components/HighlightCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-
-// Mock Data
-const RECENT_SESSIONS = [
-    {
-        id: 1,
-        title: "Steve Jobs' 2005 Stanford Commencement Address",
-        thumbnailUrl: "https://img.youtube.com/vi/UF8uR6Z6KLc/maxresdefault.jpg",
-        progress: 75,
-        timeLeft: "14:30",
-        totalSentences: 45
-    },
-    {
-        id: 2,
-        title: "The power of vulnerability | Brené Brown",
-        thumbnailUrl: "https://img.youtube.com/vi/iCvmsMzlF7o/maxresdefault.jpg",
-        progress: 30,
-        timeLeft: "20:19",
-        totalSentences: 62
-    }
-];
-
-const RECOMMENDED_VIDEOS = [
-    {
-        id: 3,
-        title: "How great leaders inspire action | Simon Sinek",
-        thumbnailUrl: "https://img.youtube.com/vi/qp0HIF3SfI4/maxresdefault.jpg",
-        duration: "18:04",
-        description: "Simon Sinek has a simple but powerful model for inspirational leadership - starting with a golden circle and the question: \"Why?\""
-    },
-    {
-        id: 4,
-        title: "Your body language may shape who you are | Amy Cuddy",
-        thumbnailUrl: "https://img.youtube.com/vi/Ks-_Mh1QhMc/maxresdefault.jpg",
-        duration: "21:02",
-        description: "Body language affects how others see us, but it may also change how we see ourselves."
-    },
-    {
-        id: 5,
-        title: "Inside the mind of a master procrastinator | Tim Urban",
-        thumbnailUrl: "https://img.youtube.com/vi/arj7oStGLkU/maxresdefault.jpg",
-        duration: "14:03",
-        description: "Tim Urban knows that procrastination doesn't make sense, but he's never been able to shake his habit of waiting until the last minute to get things done."
-    }
-];
+import { useStore } from '@/lib/store';
+import { extractVideoId } from '@/lib/transcript-parser';
 
 export default function HomePage() {
     const [url, setUrl] = useState('');
     const router = useRouter();
-    const hasRecords = true; // Toggle this to see empty state
+
+    // Store Data
+    const videos = useStore((state) => state.videos);
+    const sessions = useStore((state) => state.sessions);
+    const highlights = useStore((state) => state.highlights);
+    const getVideo = useStore((state) => state.getVideo);
+
+    // Derived State
+    const recentSessions = Object.values(sessions).sort((a, b) => b.lastAccessedAt - a.lastAccessedAt);
+    const hasRecords = recentSessions.length > 0 || highlights.length > 0;
+
+    // Hydration fix (Zustand persist needs client-side mount check)
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const handleStartSession = () => {
         if (!url) return;
-        console.log('Starting session with URL:', url);
-        // router.push(`/session?url=${encodeURIComponent(url)}`);
+        const videoId = extractVideoId(url);
+        if (videoId) {
+            console.log('Starting session with Video ID:', videoId);
+            router.push(`/session/${videoId}`);
+        } else {
+            alert('Invalid YouTube URL');
+        }
     };
+
+    if (!isMounted) {
+        return null; // or a loading skeleton
+    }
 
     return (
         <div className="min-h-screen bg-secondary-200 flex flex-col">
@@ -89,136 +71,115 @@ export default function HomePage() {
             </header>
 
             <main className="flex-1 max-w-[1920px] w-full mx-auto p-8 flex flex-col gap-6 h-[calc(100vh-80px)] overflow-hidden">
-                {hasRecords ? (
-                    <div className="flex flex-row gap-6 items-start h-full">
+                {/* Always show the 3-column layout, with individual empty states */}
+                <div className="flex flex-row gap-6 items-start h-full">
 
-                        {/* Left Column: Recommended Videos */}
-                        <section className="flex flex-col gap-4 w-[25%] h-full">
-                            <div className="flex flex-col gap-4 shrink-0">
-                                <h2 className="text-2xl font-semibold text-black">학습할 영상</h2>
-                                {/* Filter Chips Mock */}
-                                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-                                    {["토크쇼", "영화", "TV 시리즈", "인터뷰", "팟캐스트"].map((cat, index) => (
-                                        <button
-                                            key={cat}
-                                            className={`
+                    {/* Left Column: Recommended Videos */}
+                    <section className="flex flex-col gap-4 w-[25%] h-full">
+                        <div className="flex flex-col gap-4 shrink-0">
+                            <h2 className="text-2xl font-semibold text-black">학습할 영상</h2>
+                            {/* Filter Chips Mock */}
+                            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                                {["토크쇼", "영화", "TV 시리즈", "인터뷰", "팟캐스트"].map((cat, index) => (
+                                    <button
+                                        key={cat}
+                                        className={`
                                 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-base font-medium transition-colors whitespace-nowrap
                                 ${index === 0
-                                                    ? "bg-[#2c2c2c] text-[#f5f5f5]"
-                                                    : "bg-[#f5f5f5] text-[#757575] hover:bg-[#e5e5e5]"}
+                                                ? "bg-[#2c2c2c] text-[#f5f5f5]"
+                                                : "bg-[#f5f5f5] text-[#757575] hover:bg-[#e5e5e5]"}
                             `}
-                                        >
-                                            {index === 0 && (
-                                                <div className="relative shrink-0 size-[16px]">
-                                                    <svg className="block size-full" fill="none" viewBox="0 0 16 16">
-                                                        <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="#F5F5F5" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
-                                                    </svg>
-                                                </div>
-                                            )}
-                                            <span className="leading-[20px]">{cat}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="flex-1 min-h-0 overflow-y-auto pr-2">
-                                <div className="flex flex-col gap-4 pb-4">
-                                    {RECOMMENDED_VIDEOS.map((video) => (
-                                        <Link href={`/session/new?videoId=${video.id}`} key={video.id} className="block">
-                                            <VideoCard
-                                                title={video.title}
-                                                thumbnailUrl={video.thumbnailUrl}
-                                                duration={video.duration}
-                                                description={video.description}
-                                            />
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Middle Column: Recent Sessions */}
-                        <section className="bg-[#f3f3f3] rounded-2xl p-4 h-full w-[45%] flex flex-col">
-                            <div className="flex items-center gap-1 relative mb-4 shrink-0">
-                                <h2 className="text-xl font-semibold text-black">학습 중인 영상</h2>
-                            </div>
-                            <div className="flex-1 min-h-0 overflow-y-auto pr-2">
-                                <div className="flex flex-col gap-4 pb-4">
-                                    {RECENT_SESSIONS.map((session) => (
-                                        <SessionCard
-                                            key={session.id}
-                                            title={session.title}
-                                            thumbnailUrl={session.thumbnailUrl}
-                                            progress={session.progress}
-                                            timeLeft={session.timeLeft}
-                                            totalSentences={session.totalSentences}
-                                            onClick={() => console.log(`Resume session ${session.id}`)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Right Column: Highlights */}
-                        <section className="bg-[#f3f3f3] rounded-2xl p-4 h-full w-[30%] flex flex-col">
-                            <h2 className="text-xl font-semibold text-black mb-4 shrink-0">하이라이트</h2>
-                            <div className="flex-1 min-h-0 overflow-y-auto pr-2">
-                                <div className="flex flex-col gap-4 pb-4">
-                                    {/* Mock Grouped Highlights */}
-                                    <div className="flex flex-col gap-3">
-                                        <div className="bg-[#e3e3e3] rounded-2xl p-3 flex gap-3 items-center">
-                                            <div className="w-[80px] h-[56px] rounded-xl overflow-hidden shrink-0 bg-neutral-300">
-                                                <img src="https://img.youtube.com/vi/UF8uR6Z6KLc/maxresdefault.jpg" className="w-full h-full object-cover" alt="Thumbnail" />
+                                    >
+                                        {index === 0 && (
+                                            <div className="relative shrink-0 size-[16px]">
+                                                <svg className="block size-full" fill="none" viewBox="0 0 16 16">
+                                                    <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="#F5F5F5" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
+                                                </svg>
                                             </div>
-                                            <h3 className="text-lg font-semibold text-black line-clamp-2 leading-tight">
-                                                Steve Jobs' 2005 Stanford Commencement Address
-                                            </h3>
-                                        </div>
-                                        <div className="flex flex-col gap-3">
-                                            <HighlightCard
-                                                highlightedSentence="Stay hungry, stay foolish."
-                                                userCaption="This is my favorite quote."
-                                            />
-                                            <HighlightCard
-                                                highlightedSentence="Your time is limited, so don't waste it living someone else's life."
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-col gap-3">
-                                        <div className="bg-[#e3e3e3] rounded-2xl p-3 flex gap-3 items-center">
-                                            <div className="w-[80px] h-[56px] rounded-xl overflow-hidden shrink-0 bg-neutral-300">
-                                                <img src="https://img.youtube.com/vi/iCvmsMzlF7o/maxresdefault.jpg" className="w-full h-full object-cover" alt="Thumbnail" />
-                                            </div>
-                                            <h3 className="text-lg font-semibold text-black line-clamp-2 leading-tight">
-                                                The power of vulnerability
-                                            </h3>
-                                        </div>
-                                        <div className="flex flex-col gap-3">
-                                            <HighlightCard
-                                                highlightedSentence="Vulnerability is the birthplace of innovation, creativity and change."
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+                                        )}
+                                        <span className="leading-[20px]">{cat}</span>
+                                    </button>
+                                ))}
                             </div>
-                        </section>
-
-                    </div>
-                ) : (
-                    /* Empty State */
-                    <section className="flex flex-col items-center justify-center py-20 gap-6 h-full">
-                        <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
-                            <span className="text-4xl">📝</span>
                         </div>
-                        <div className="text-center space-y-2">
-                            <h3 className="text-headline-medium text-neutral-900">아직 학습 기록이 없어요</h3>
-                            <p className="text-body-large text-neutral-500">
-                                왼쪽 목록에서 영상을 선택하여<br />첫 번째 쉐도잉 학습을 시작해보세요!
-                            </p>
+
+                        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+                            <div className="flex flex-col gap-4 pb-4">
+                                {videos.map((video) => (
+                                    <Link href={`/session/${video.id}`} key={video.id} className="block">
+                                        <VideoCard
+                                            title={video.title}
+                                            thumbnailUrl={video.thumbnailUrl}
+                                            duration={video.duration}
+                                            description={video.description}
+                                            sentenceCount={video.sentenceCount}
+                                        />
+                                    </Link>
+                                ))}
+                            </div>
                         </div>
                     </section>
-                )}
+
+                    {/* Middle Column: Recent Sessions */}
+                    <section className="bg-[#f3f3f3] rounded-2xl p-4 h-full w-[45%] flex flex-col">
+                        <div className="flex items-center gap-1 relative mb-4 shrink-0">
+                            <h2 className="text-xl font-semibold text-black">학습 중인 영상</h2>
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+                            {recentSessions.length > 0 ? (
+                                <div className="flex flex-col gap-4 pb-4">
+                                    {recentSessions.map((session) => {
+                                        const video = getVideo(session.videoId);
+                                        if (!video) return null;
+                                        return (
+                                            <SessionCard
+                                                key={session.id}
+                                                title={video.title}
+                                                thumbnailUrl={video.thumbnailUrl}
+                                                progress={session.progress}
+                                                timeLeft={session.timeLeft}
+                                                totalSentences={session.totalSentences}
+                                                onClick={() => router.push(`/session/${session.videoId}`)}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-neutral-500">
+                                    <p>아직 학습 중인 영상이 없어요.</p>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    {/* Right Column: Highlights */}
+                    <section className="bg-[#f3f3f3] rounded-2xl p-4 h-full w-[30%] flex flex-col">
+                        <h2 className="text-xl font-semibold text-black mb-4 shrink-0">하이라이트</h2>
+                        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+                            {highlights.length > 0 ? (
+                                <div className="flex flex-col gap-4 pb-4">
+                                    {/* Group highlights by video logic could go here, for now just listing */}
+                                    {highlights.map((highlight) => {
+                                        const video = getVideo(highlight.videoId);
+                                        return (
+                                            <HighlightCard
+                                                key={highlight.id}
+                                                highlightedSentence={highlight.originalText}
+                                                userCaption={highlight.userNote}
+                                            // videoTitle={video?.title} // HighlightCard doesn't support videoTitle prop yet based on last edit, need to check
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-neutral-500">
+                                    <p>아직 하이라이트가 없어요.</p>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                </div>
             </main>
         </div>
     );
