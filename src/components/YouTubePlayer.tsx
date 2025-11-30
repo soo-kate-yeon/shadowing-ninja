@@ -8,6 +8,8 @@ interface YouTubePlayerProps {
     videoId: string;
     onReady?: (player: YT.Player) => void;
     onTimeUpdate?: (currentTime: number) => void;
+    onPlayingStateChange?: (isPlaying: boolean) => void;
+    disableSpacebarControl?: boolean;
     className?: string;
 }
 
@@ -41,6 +43,8 @@ export default function YouTubePlayer({
     videoId,
     onReady,
     onTimeUpdate,
+    onPlayingStateChange,
+    disableSpacebarControl = false,
     className = '',
 }: YouTubePlayerProps) {
     const playerRef = useRef<YT.Player | null>(null);
@@ -96,8 +100,10 @@ export default function YouTubePlayer({
                     onReady?.(event.target);
                 },
                 onStateChange: (event) => {
-                    setIsPlaying(event.data === window.YT.PlayerState.PLAYING);
-                    if (event.data === window.YT.PlayerState.PLAYING) {
+                    const playing = event.data === window.YT.PlayerState.PLAYING;
+                    setIsPlaying(playing);
+                    onPlayingStateChange?.(playing);
+                    if (playing) {
                         startTimeUpdateInterval();
                     }
                 },
@@ -107,7 +113,7 @@ export default function YouTubePlayer({
         return () => {
             playerRef.current?.destroy();
         };
-    }, [isAPIReady, videoId]);
+    }, [isAPIReady, videoId, onPlayingStateChange]);
 
     // Time update interval
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -134,17 +140,27 @@ export default function YouTubePlayer({
 
     // Keyboard listener for spacebar
     useEffect(() => {
+        if (disableSpacebarControl) return;
+
         const handleKeyDown = (e: KeyboardEvent) => {
             // Only handle spacebar if the wrapper is focused or if no input is focused
             if (e.code === 'Space' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
                 e.preventDefault();
-                togglePlay();
+                // Use playerRef to get current state instead of stale isPlaying
+                if (playerRef.current) {
+                    const currentState = playerRef.current.getPlayerState();
+                    if (currentState === window.YT.PlayerState.PLAYING) {
+                        playerRef.current.pauseVideo();
+                    } else {
+                        playerRef.current.playVideo();
+                    }
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isPlaying]); // Re-attach when isPlaying changes
+    }, [disableSpacebarControl]);
 
     // Controls Handlers
     const togglePlay = () => {

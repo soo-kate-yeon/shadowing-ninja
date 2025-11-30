@@ -136,6 +136,7 @@ export default function SessionPage() {
             <SessionHeader
                 title={video?.title || 'Unknown Video'}
                 onBack={() => router.push('/home')}
+                onNextStep={() => router.push(`/shadowing/${videoId}`)}
             />
 
             <main className="flex-1 flex gap-6 p-8 h-[calc(100vh-80px)]">
