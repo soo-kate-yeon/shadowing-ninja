@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Innertube } from 'youtubei.js';
-import { parseTranscriptToSentences } from '@/lib/transcript-parser';
+import { parseTranscriptToSentences, groupSentencesByMode } from '@/lib/transcript-parser';
 
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
         const videoId = searchParams.get('videoId');
+        const mode = searchParams.get('mode') as 'sentence' | 'paragraph' | 'total' || 'sentence';
 
         if (!videoId) {
             return NextResponse.json(
@@ -37,12 +38,17 @@ export async function GET(request: NextRequest) {
             }));
 
             // Parse into sentences
-            const sentences = parseTranscriptToSentences(transcriptItems);
+            const parsedSentences = parseTranscriptToSentences(transcriptItems);
+
+            // Group by mode
+            const sentences = groupSentencesByMode(parsedSentences, mode);
 
             // Debug logging
             console.log('🎥 [Transcript API] Video:', videoId);
+            console.log('📊 [Transcript API] Mode:', mode);
             console.log('📊 [Transcript API] Segments received:', transcriptItems.length);
-            console.log('� [Transcript API] Sentences parsed:', sentences.length);
+            console.log('📝 [Transcript API] Sentences parsed:', parsedSentences.length);
+            console.log('📦 [Transcript API] Sentences grouped:', sentences.length);
 
             return NextResponse.json({
                 success: true,

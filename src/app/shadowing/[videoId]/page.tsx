@@ -33,7 +33,7 @@ export default function ShadowingPage() {
         const fetchTranscript = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`/api/transcript?videoId=${videoId}`);
+                const response = await fetch(`/api/transcript?videoId=${videoId}&mode=${mode}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch transcript');
                 }
@@ -48,7 +48,7 @@ export default function ShadowingPage() {
         };
 
         fetchTranscript();
-    }, [videoId]);
+    }, [videoId, mode]);
 
     const handlePlayerReady = (playerInstance: YT.Player) => {
         setPlayer(playerInstance);

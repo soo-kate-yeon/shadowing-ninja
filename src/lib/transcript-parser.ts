@@ -137,3 +137,63 @@ export function extractVideoId(url: string): string | null {
 
     return null;
 }
+
+/**
+ * Group sentences based on mode
+ * - sentence: individual sentences (no grouping)
+ * - paragraph: 5-10 sentences, must end with period
+ * - total: all sentences combined into one
+ */
+export function groupSentencesByMode(
+    sentences: Sentence[],
+    mode: 'sentence' | 'paragraph' | 'total'
+): Sentence[] {
+    if (mode === 'sentence') {
+        return sentences;
+    }
+
+    if (mode === 'total') {
+        // Combine all sentences into one
+        if (sentences.length === 0) return [];
+
+        return [{
+            id: crypto.randomUUID(),
+            text: sentences.map(s => s.text).join(' '),
+            startTime: sentences[0].startTime,
+            endTime: sentences[sentences.length - 1].endTime,
+            highlights: [],
+        }];
+    }
+
+    // Paragraph mode: 5-10 sentences, must end with period
+    const paragraphs: Sentence[] = [];
+    let currentParagraph: Sentence[] = [];
+
+    sentences.forEach((sentence, index) => {
+        currentParagraph.push(sentence);
+
+        const endsWithPeriod = sentence.text.trim().endsWith('.');
+        const hasMinSentences = currentParagraph.length >= 5;
+        const hasMaxSentences = currentParagraph.length >= 10;
+        const isLastSentence = index === sentences.length - 1;
+
+        // Create paragraph if:
+        // 1. Has 5-10 sentences AND ends with period
+        // 2. Has 10 sentences (force break)
+        // 3. Is last sentence and has at least 1 sentence
+        if ((hasMinSentences && endsWithPeriod) || hasMaxSentences || isLastSentence) {
+            paragraphs.push({
+                id: crypto.randomUUID(),
+                text: currentParagraph.map(s => s.text).join(' '),
+                startTime: currentParagraph[0].startTime,
+                endTime: currentParagraph[currentParagraph.length - 1].endTime,
+                highlights: [],
+            });
+            currentParagraph = [];
+        }
+    });
+
+    console.log('📦 [Grouping] Mode:', mode, 'Original:', sentences.length, 'Grouped:', paragraphs.length);
+
+    return paragraphs;
+}
