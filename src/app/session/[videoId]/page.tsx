@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { Button } from '@/components/ui/button';
 import { Sentence } from '@/types';
 import YouTubePlayer from '@/components/YouTubePlayer';
+import { SessionHeader } from '@/components/session/SessionHeader';
+import { ScriptLine } from '@/components/session/ScriptLine';
+import { Highlight } from '@/components/session/AnalysisPanel';
 
 export default function SessionPage() {
     const params = useParams();
@@ -20,9 +22,20 @@ export default function SessionPage() {
     const [currentTime, setCurrentTime] = useState(0);
     const activeSentenceRef = useRef<HTMLDivElement>(null);
 
+    // UI State
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
+    // Store
     const addSession = useStore((state) => state.addSession);
     const getVideo = useStore((state) => state.getVideo);
     const video = getVideo(videoId);
+    const storeHighlights = useStore((state) => state.highlights);
+    const addHighlight = useStore((state) => state.addHighlight);
+
+    // Filter highlights for this video
+    const sessionHighlights = useMemo(() =>
+        storeHighlights.filter(h => h.videoId === videoId),
+        [storeHighlights, videoId]);
 
     useEffect(() => {
         if (!videoId) return;
@@ -72,11 +85,21 @@ export default function SessionPage() {
         setCurrentTime(time);
     };
 
-    const handleSentenceClick = (startTime: number) => {
+    const handleSeek = (startTime: number) => {
         if (player) {
             player.seekTo(startTime, true);
             player.playVideo(); // Optional: auto-play after seek
         }
+    };
+
+    const handleAddHighlight = (text: string, comment: string) => {
+        addHighlight({
+            id: crypto.randomUUID(),
+            videoId,
+            originalText: text,
+            userNote: comment,
+            createdAt: Date.now()
+        });
     };
 
     // Find active sentence
@@ -95,29 +118,35 @@ export default function SessionPage() {
     }, [activeSentenceIndex]);
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen">Loading Session...</div>;
+        return <div className="flex items-center justify-center h-screen bg-secondary-200 text-secondary-500">Loading Session...</div>;
     }
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen gap-4">
-                <p className="text-red-500">{error}</p>
-                <Button onClick={() => router.push('/home')}>Go Home</Button>
+            <div className="flex flex-col items-center justify-center h-screen gap-4 bg-secondary-200">
+                <p className="text-error">{error}</p>
+                <button onClick={() => router.push('/home')} className="text-primary-500 hover:underline">Go Home</button>
             </div>
         );
     }
 
     return (
-        <div className="h-screen bg-background flex flex-col overflow-hidden">
-            <header className="h-16 border-b flex items-center px-6 justify-between shrink-0 bg-white z-10">
-                <h1 className="font-semibold text-lg truncate max-w-[600px]">{video?.title || 'Unknown Video'}</h1>
-                <Button variant="ghost" onClick={() => router.push('/home')}>Exit</Button>
-            </header>
+        <div className="h-screen bg-secondary-200 flex flex-col overflow-hidden relative">
+            {/* Header */}
+            <SessionHeader
+                title={video?.title || 'Unknown Video'}
+                onBack={() => router.push('/home')}
+            />
 
-            <main className="flex-1 flex overflow-hidden">
-                {/* Left Column: Video Player */}
-                <div className="flex-1 bg-black flex items-center justify-center relative">
-                    <div className="w-full max-w-[1200px] aspect-video">
+            <main className="flex-1 flex gap-6 p-8 h-[calc(100vh-80px)]">
+                {/* Left: Video Player */}
+                <div className="w-1/2 h-full flex flex-col">
+                    <h2 className="text-2xl font-bold text-neutral-900 leading-relaxed mb-6 tracking-tight whitespace-pre-wrap">
+                        이제, 스크립트를 보며 다시 들어보세요.{'\n'}
+                        어려운 문장이 있다면 클릭해서 분석해보세요.
+                    </h2>
+
+                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
                         <YouTubePlayer
                             videoId={videoId}
                             className="w-full h-full"
@@ -127,46 +156,34 @@ export default function SessionPage() {
                     </div>
                 </div>
 
-                {/* Right Column: Transcript */}
-                <div className="w-[400px] bg-white border-l flex flex-col shrink-0">
-                    <div className="p-4 border-b shrink-0 bg-white">
-                        <h2 className="font-semibold text-lg">Transcript</h2>
-                        <p className="text-sm text-muted-foreground">{sentences.length} sentences</p>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Right: Script & Analysis */}
+                <div className="w-1/2 h-full bg-secondary-50 rounded-2xl p-8 overflow-y-auto relative shadow-sm">
+                    <div className="flex flex-col gap-6 pb-20">
                         {sentences.map((sentence, idx) => {
                             const isActive = idx === activeSentenceIndex;
+                            // Find highlights for this sentence
+                            // Simple check: if highlight text is contained in sentence text
+                            const sentenceHighlights: Highlight[] = sessionHighlights
+                                .filter(h => sentence.text.includes(h.originalText))
+                                .map(h => ({ text: h.originalText, comment: h.userNote || '' }));
+
                             return (
-                                <div
-                                    key={sentence.id}
-                                    ref={isActive ? activeSentenceRef : null}
-                                    className={`
-                                        p-3 rounded-xl cursor-pointer transition-all duration-200 group
-                                        ${isActive
-                                            ? 'bg-primary-100 ring-1 ring-primary-500 shadow-sm'
-                                            : 'hover:bg-secondary-100'
-                                        }
-                                    `}
-                                    onClick={() => handleSentenceClick(sentence.startTime)}
-                                >
-                                    <div className="flex gap-3">
-                                        <span className={`
-                                            text-xs font-mono mt-1 shrink-0 w-6 transition-colors
-                                            ${isActive ? 'text-primary-700 font-bold' : 'text-muted-foreground'}
-                                        `}>
-                                            {idx + 1}
-                                        </span>
-                                        <p className={`
-                                            text-base leading-relaxed transition-colors
-                                            ${isActive ? 'text-black font-medium' : 'text-neutral-800 group-hover:text-black'}
-                                        `}>
-                                            {sentence.text}
-                                        </p>
-                                    </div>
+                                <div key={sentence.id} ref={isActive ? activeSentenceRef : null}>
+                                    <ScriptLine
+                                        sentence={sentence}
+                                        index={idx}
+                                        isActive={isActive}
+                                        expanded={expandedId === sentence.id}
+                                        highlights={sentenceHighlights}
+                                        onToggleExpand={() => setExpandedId(prev => prev === sentence.id ? null : sentence.id)}
+                                        onAddHighlight={handleAddHighlight}
+                                        onSeek={handleSeek}
+                                    />
                                 </div>
                             );
                         })}
+                        {/* Extra scroll space */}
+                        <div className="h-20" />
                     </div>
                 </div>
             </main>

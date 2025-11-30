@@ -49,6 +49,12 @@
   --color-error: #ef4444;
   --color-info: #3b82f6;
 
+  /* Accent Colors */
+  --color-accent-yellow: #ffe586;
+  --color-accent-yellow-light: #fee500;
+  --color-accent-highlight: #ecc845;
+  --color-accent-peach: #f8e4d8;
+
   /* Fonts */
   --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-secondary: 'Open Sans', 'Noto Sans KR', sans-serif;
