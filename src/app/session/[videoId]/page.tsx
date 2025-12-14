@@ -96,7 +96,14 @@ export default function SessionPage() {
                 // Mark as loaded
                 hasLoadedTranscriptRef.current = videoId;
 
-            } catch (err) {
+            } catch (err: any) {
+                // Ignore "no transcript" errors in console, just set UI state
+                if (err.message === 'This video has no transcript available') {
+                    setError('This video has no transcript available');
+                    setLoading(false);
+                    return;
+                }
+
                 console.error(err);
                 setError('Failed to load session');
             } finally {

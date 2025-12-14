@@ -44,4 +44,6 @@ export interface TranscriptItem {
   text: string;
   start: number;
   duration: number;
+  offset: number;
+  lang: string;
 }
