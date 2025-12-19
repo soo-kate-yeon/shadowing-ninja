@@ -10,6 +10,8 @@ interface YouTubePlayerProps {
     onTimeUpdate?: (currentTime: number) => void;
     onPlayingStateChange?: (isPlaying: boolean) => void;
     disableSpacebarControl?: boolean;
+    startSeconds?: number; // Start time for snippet playback
+    endSeconds?: number;   // End time for snippet playback
     className?: string;
 }
 
@@ -45,6 +47,8 @@ export default function YouTubePlayer({
     onTimeUpdate,
     onPlayingStateChange,
     disableSpacebarControl = false,
+    startSeconds = 0,
+    endSeconds,
     className = '',
 }: YouTubePlayerProps) {
     const playerRef = useRef<YT.Player | null>(null);
@@ -92,10 +96,11 @@ export default function YouTubePlayer({
                 rel: 0,
                 disablekb: 1, // Disable default keyboard controls
                 fs: 0, // Hide fullscreen button
+                start: startSeconds, // Start at snippet start time
             },
             events: {
                 onReady: (event) => {
-                    setDuration(event.target.getDuration());
+                    setDuration(endSeconds || event.target.getDuration());
                     setVolume(event.target.getVolume());
                     onReady?.(event.target);
                 },
@@ -113,7 +118,7 @@ export default function YouTubePlayer({
         return () => {
             playerRef.current?.destroy();
         };
-    }, [isAPIReady, videoId, onPlayingStateChange]);
+    }, [isAPIReady, videoId, startSeconds, endSeconds, onPlayingStateChange]);
 
     // Time update interval
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -123,13 +128,20 @@ export default function YouTubePlayer({
         intervalRef.current = setInterval(() => {
             if (playerRef.current && playerRef.current.getPlayerState() === window.YT.PlayerState.PLAYING) {
                 const time = playerRef.current.getCurrentTime();
+
+                // Loop back to start if we've reached the end of snippet
+                if (endSeconds && time >= endSeconds) {
+                    playerRef.current.seekTo(startSeconds, true);
+                    return;
+                }
+
                 setCurrentTime(time);
                 onTimeUpdate?.(time);
             } else {
                 if (intervalRef.current) clearInterval(intervalRef.current);
             }
         }, 100);
-    }, [onTimeUpdate]);
+    }, [onTimeUpdate, startSeconds, endSeconds]);
 
     // Cleanup interval
     useEffect(() => {

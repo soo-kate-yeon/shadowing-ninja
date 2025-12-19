@@ -63,7 +63,7 @@ export default function ShadowingPage() {
         }
 
         // Find sentence ID
-        const sentence = sentences.find(s => s.startTime === startTime);
+        const sentence = sentences.find(s => s.start === startTime);
         if (sentence) {
             setCurrentPlayingId(sentence.id);
         }
