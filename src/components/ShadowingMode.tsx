@@ -30,12 +30,12 @@ export default function ShadowingMode({ sentences, player }: ShadowingModeProps)
     const playSentence = () => {
         if (!player || !currentSentence) return;
 
-        playerControls.seekTo(player, currentSentence.startTime);
+        playerControls.seekTo(player, currentSentence.start);
         playerControls.play(player);
         setListenCount(prev => prev + 1);
 
         // Auto-pause at sentence end
-        const duration = (currentSentence.endTime - currentSentence.startTime) * 1000;
+        const duration = (currentSentence.end - currentSentence.start) * 1000;
         setTimeout(() => {
             playerControls.pause(player);
         }, duration);
@@ -129,8 +129,8 @@ export default function ShadowingMode({ sentences, player }: ShadowingModeProps)
                 <button
                     onClick={() => setUnit('sentence')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${unit === 'sentence'
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                 >
                     1문장씩
@@ -138,8 +138,8 @@ export default function ShadowingMode({ sentences, player }: ShadowingModeProps)
                 <button
                     onClick={() => setUnit('paragraph')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${unit === 'paragraph'
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                 >
                     1문단씩
@@ -147,8 +147,8 @@ export default function ShadowingMode({ sentences, player }: ShadowingModeProps)
                 <button
                     onClick={() => setUnit('all')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${unit === 'all'
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                 >
                     전체

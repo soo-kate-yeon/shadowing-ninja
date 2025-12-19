@@ -1,15 +1,16 @@
 export interface Sentence {
   id: string;
   text: string;
-  startTime: number; // seconds
-  endTime: number;
-  
+  start: number; // seconds - when this sentence starts
+  duration: number; // seconds - how long this sentence lasts
+  end: number; // seconds - when this sentence ends (start + duration)
+
   // Note information
   notes?: {
     difficultyTags: string[]; // ["연음", "문법", "발음", "속도"]
     aiTip?: string;
   };
-  
+
   // Highlight information
   highlights: Highlight[];
 }
@@ -46,4 +47,30 @@ export interface TranscriptItem {
   duration: number;
   offset: number;
   lang: string;
+}
+
+export interface CuratedVideo {
+  id: string;
+  video_id: string;
+  title: string;
+  thumbnail_url?: string;
+  duration?: string;
+  channel_name?: string;
+
+  // Snippet-specific fields
+  snippet_start_time: number; // seconds
+  snippet_end_time: number;    // seconds
+  snippet_duration: number;    // auto-calculated
+  transcript: Sentence[];      // Only snippet sentences
+
+  // Metadata
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  tags?: string[];
+
+  // Legal protection
+  source_url: string;
+  attribution: string;
+
+  created_at: string;
+  created_by?: string;
 }

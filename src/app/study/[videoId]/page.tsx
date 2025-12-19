@@ -221,14 +221,14 @@ function ScriptPanel({
 
     useEffect(() => {
         const active = sentences.find(
-            s => currentTime >= s.startTime && currentTime < s.endTime
+            s => currentTime >= s.start && currentTime < s.end
         );
         setActiveSentenceId(active?.id || null);
     }, [currentTime, sentences]);
 
     const handleSentenceClick = (sentence: Sentence) => {
         if (player) {
-            playerControls.seekTo(player, sentence.startTime);
+            playerControls.seekTo(player, sentence.start);
             playerControls.play(player);
         }
     };

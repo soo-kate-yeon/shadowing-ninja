@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /session/
+Disallow: /study/
+Disallow: /shadowing/
+Disallow: /admin/
+Disallow: /api/admin/
+Allow: /

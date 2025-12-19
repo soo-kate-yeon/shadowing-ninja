@@ -4,101 +4,146 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SessionCard from '@/components/SessionCard';
-import VideoCard from '@/components/VideoCard';
-import HighlightCard from '@/components/HighlightCard';
-import { Button } from '../../../ui/button';
-import { Input } from '../../../ui/input';
 import UserMenu from '@/components/auth/UserMenu';
 import { useStore } from '@/lib/store';
-import { extractVideoId } from '@/lib/transcript-parser';
-
 import TopNav from '@/components/TopNav';
+import { CuratedVideo } from '@/types';
 
 export default function HomePage() {
-    const [url, setUrl] = useState('');
     const router = useRouter();
-
-    // Store Data
-    const videos = useStore((state) => state.videos);
     const sessions = useStore((state) => state.sessions);
-    const getVideo = useStore((state) => state.getVideo);
 
-    // Derived State
-    const recentSessions = Object.values(sessions).sort((a, b) => b.lastAccessedAt - a.lastAccessedAt);
+    // Curated videos state
+    const [curatedVideos, setCuratedVideos] = useState<CuratedVideo[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
 
-    // Hydration fix (Zustand persist needs client-side mount check)
+    // Hydration fix
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => {
         setIsMounted(true);
     }, []);
 
-    const handleStartSession = () => {
-        if (!url) return;
-        const videoId = extractVideoId(url);
-        if (videoId) {
-            console.log('Starting session with Video ID:', videoId);
-            router.push(`/session/${videoId}`);
-        } else {
-            alert('Invalid YouTube URL');
-        }
-    };
+    // Fetch curated videos
+    useEffect(() => {
+        const fetchVideos = async () => {
+            try {
+                setLoading(true);
+                const params = new URLSearchParams();
+                if (selectedDifficulty !== 'all') {
+                    params.append('difficulty', selectedDifficulty);
+                }
+
+                const response = await fetch(`/api/curated-videos?${params}`);
+                if (!response.ok) throw new Error('Failed to fetch videos');
+
+                const data = await response.json();
+                setCuratedVideos(data.videos || []);
+            } catch (error) {
+                console.error('Failed to load curated videos:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchVideos();
+    }, [selectedDifficulty]);
+
+    // Derived State
+    const recentSessions = Object.values(sessions).sort((a, b) => b.lastAccessedAt - a.lastAccessedAt);
 
     if (!isMounted) {
-        return null; // or a loading skeleton
+        return null;
     }
 
     return (
         <div className="min-h-screen bg-secondary-200 flex flex-col">
-            {/* Top Navigation */}
             <TopNav />
 
             <main className="flex-1 max-w-[1920px] w-full mx-auto p-8 flex flex-col gap-6 h-[calc(100vh-80px)] overflow-hidden">
-                {/* 2-column layout: Videos and Sessions */}
                 <div className="flex flex-row gap-6 items-start h-full">
 
-                    {/* Left Column: Recommended Videos */}
+                    {/* Left Column: Curated Videos */}
                     <section className="flex flex-col gap-4 w-[33%] h-full">
                         <div className="flex flex-col gap-4 shrink-0">
                             <h2 className="text-2xl font-semibold text-black">학습할 영상</h2>
-                            {/* Filter Chips Mock */}
+
+                            {/* Difficulty Filter */}
                             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-                                {["토크쇼", "영화", "TV 시리즈", "인터뷰", "팟캐스트"].map((cat, index) => (
+                                {[
+                                    { id: 'all', label: '전체' },
+                                    { id: 'beginner', label: '초급' },
+                                    { id: 'intermediate', label: '중급' },
+                                    { id: 'advanced', label: '고급' }
+                                ].map((cat) => (
                                     <button
-                                        key={cat}
+                                        key={cat.id}
+                                        onClick={() => setSelectedDifficulty(cat.id)}
                                         className={`
-                                flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-base font-medium transition-colors whitespace-nowrap
-                                ${index === 0
+                                            flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-base font-medium transition-colors whitespace-nowrap
+                                            ${selectedDifficulty === cat.id
                                                 ? "bg-[#2c2c2c] text-[#f5f5f5]"
                                                 : "bg-[#f5f5f5] text-[#757575] hover:bg-[#e5e5e5]"}
-                            `}
+                                        `}
                                     >
-                                        {index === 0 && (
+                                        {selectedDifficulty === cat.id && (
                                             <div className="relative shrink-0 size-[16px]">
                                                 <svg className="block size-full" fill="none" viewBox="0 0 16 16">
                                                     <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="#F5F5F5" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
                                                 </svg>
                                             </div>
                                         )}
-                                        <span className="leading-[20px]">{cat}</span>
+                                        <span className="leading-[20px]">{cat.label}</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         <div className="flex-1 min-h-0 overflow-y-auto pr-2">
-                            <div className="flex flex-col gap-4 pb-4">
-                                {videos.map((video) => (
-                                    <Link href={`/session/${video.id}`} key={video.id} className="block">
-                                        <VideoCard
-                                            title={video.title}
-                                            thumbnailUrl={video.thumbnailUrl}
-                                            duration={video.duration}
-                                            description={video.description}
-                                            sentenceCount={video.sentenceCount}
-                                        />
+                            {loading ? (
+                                <div className="flex justify-center items-center h-40">
+                                    <p className="text-secondary-500">Loading...</p>
+                                </div>
+                            ) : curatedVideos.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-40 text-secondary-500">
+                                    <p>큐레이션된 영상이 없어요.</p>
+                                    <Link href="/admin" className="text-primary-500 hover:underline mt-2">
+                                        + 영상 추가하기
                                     </Link>
-                                ))}
-                            </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-4 pb-4">
+                                    {curatedVideos.map((video) => (
+                                        <Link href={`/session/${video.video_id}`} key={video.id} className="block">
+                                            <div className="bg-surface rounded-2xl overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+                                                <div className="aspect-video relative bg-secondary-300">
+                                                    <img
+                                                        src={video.thumbnail_url || `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
+                                                        alt={video.title}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                                                        {Math.floor(video.snippet_duration / 60)}:{String(Math.floor(video.snippet_duration % 60)).padStart(2, '0')}
+                                                    </div>
+                                                </div>
+                                                <div className="p-4">
+                                                    <h3 className="font-semibold text-secondary-900 line-clamp-2 mb-1">
+                                                        {video.title}
+                                                    </h3>
+                                                    <div className="flex items-center gap-2 text-sm text-secondary-600">
+                                                        {video.difficulty && (
+                                                            <span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-xs font-medium">
+                                                                {video.difficulty === 'beginner' ? '초급' : video.difficulty === 'intermediate' ? '중급' : '고급'}
+                                                            </span>
+                                                        )}
+                                                        <span>{video.transcript?.length || 0} sentences</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </section>
 
@@ -111,13 +156,13 @@ export default function HomePage() {
                             {recentSessions.length > 0 ? (
                                 <div className="flex flex-col gap-4 pb-4">
                                     {recentSessions.map((session) => {
-                                        const video = getVideo(session.videoId);
-                                        if (!video) return null;
+                                        // Find video info from curatedVideos if possible
+                                        const curatedVideo = curatedVideos.find(v => v.video_id === session.videoId);
                                         return (
                                             <SessionCard
                                                 key={session.id}
-                                                title={video.title}
-                                                thumbnailUrl={video.thumbnailUrl}
+                                                title={curatedVideo?.title || `Video ${session.videoId}`}
+                                                thumbnailUrl={curatedVideo?.thumbnail_url || `https://img.youtube.com/vi/${session.videoId}/mqdefault.jpg`}
                                                 progress={session.progress}
                                                 timeLeft={session.timeLeft}
                                                 totalSentences={session.totalSentences}
