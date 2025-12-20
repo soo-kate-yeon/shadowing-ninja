@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { Button } from '../../../ui/button';
+import { Button } from '@/components/ui/button';
 
 export default function AdminButton({ userId }: { userId: string }) {
     const [isAdmin, setIsAdmin] = useState(false);

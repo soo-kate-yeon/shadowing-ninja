@@ -1,7 +1,7 @@
 'use client';
 
 import { createClient } from '@/utils/supabase/client';
-import { Button } from '../../../ui/button';
+import { Button } from '@/components/ui/button';
 import { ReactNode } from 'react';
 
 interface LoginButtonProps {
@@ -20,14 +20,21 @@ export default function LoginButton({
     size = 'default',
 }: LoginButtonProps) {
     const handleLogin = async () => {
-        const supabase = createClient();
-        await supabase.auth.signInWithOAuth({
-            provider,
-            options: {
-                redirectTo: `${location.origin}/auth/callback`,
-            },
-        });
+        try {
+            const supabase = createClient();
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider,
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback`,
+                },
+            });
+            if (error) throw error;
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('로그인 중 오류가 발생했습니다.');
+        }
     };
+
 
     return (
         <Button

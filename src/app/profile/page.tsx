@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import TopNav from '@/components/TopNav';
 import { useStore } from '@/lib/store';
-import { Button } from '../../../ui/button';
+import { Button } from '@/components/ui/button';
 import AdminButton from './AdminButton';
 
 export default function ProfilePage() {

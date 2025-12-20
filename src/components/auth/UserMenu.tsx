@@ -8,8 +8,8 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '../../../ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '../../../ui/avatar';
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useEffect, useState, useMemo } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';

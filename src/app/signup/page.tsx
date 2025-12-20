@@ -1,8 +1,8 @@
 
 import Link from "next/link"
-import { Button } from "../../../ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../ui/card"
-import { Input } from "../../../ui/input"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import LoginButton from "@/components/auth/LoginButton"
 import AuthForm from "@/components/auth/AuthForm"
 

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import LoginButton from "../../components/auth/LoginButton"
 import AuthForm from "../../components/auth/AuthForm"
 
