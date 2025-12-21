@@ -1,177 +1,247 @@
-# Supabase CLI
+# Shadowing Ninja 🥷
 
-[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
-](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
+AI 기반 영어 쉐도잉 학습 플랫폼
 
-[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
+## 📚 프로젝트 소개
 
-This repository contains all the functionality for Supabase CLI.
+Shadowing Ninja는 YouTube 영상을 활용한 영어 쉐도잉 학습을 돕는 웹 애플리케이션입니다. AI가 자막을 분석하고, 사용자의 학습을 효과적으로 지원합니다.
 
-- [x] Running Supabase locally
-- [x] Managing database migrations
-- [x] Creating and deploying Supabase Functions
-- [x] Generating types directly from your database schema
-- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
+## 🚀 빠른 시작
 
-## Getting started
-
-### Install the CLI
-
-Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
+### 개발 환경 설정
 
 ```bash
-npm i supabase --save-dev
+# 저장소 클론
+git clone https://github.com/your-username/shadowing-ninja.git
+cd shadowing-ninja
+
+# 의존성 설치
+npm install
+
+# 환경 변수 설정
+cp .env.local.example .env.local
+# .env.local 파일을 편집하여 실제 값 입력
+
+# 로컬 Supabase 시작
+npm run supabase:start
+
+# 개발 서버 실행
+npm run dev
 ```
 
-When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
+브라우저에서 http://localhost:3000 접속
 
-```
-NODE_OPTIONS=--no-experimental-fetch yarn add supabase
-```
+### 배포하기
 
-> **Note**
-For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
+**5분 안에 배포**: [QUICKSTART.md](./QUICKSTART.md) 참고
 
-<details>
-  <summary><b>macOS</b></summary>
+**상세 가이드**: [DEPLOYMENT.md](./DEPLOYMENT.md) 참고
 
-  Available via [Homebrew](https://brew.sh). To install:
+## 🛠️ 기술 스택
 
-  ```sh
-  brew install supabase/tap/supabase
-  ```
+- **Frontend**: Next.js 15, React 18, TailwindCSS 4
+- **Backend**: Next.js API Routes
+- **Database**: Supabase (PostgreSQL)
+- **AI**: Google Generative AI
+- **배포**: Vercel
+- **CI/CD**: GitHub Actions
 
-  To install the beta release channel:
-  
-  ```sh
-  brew install supabase/tap/supabase-beta
-  brew link --overwrite supabase-beta
-  ```
-  
-  To upgrade:
+## 📖 문서
 
-  ```sh
-  brew upgrade supabase
-  ```
-</details>
+### 배포 관련 문서
 
-<details>
-  <summary><b>Windows</b></summary>
+- **[빠른 배포 가이드](./QUICKSTART.md)** - 5분 안에 배포하기
+- **[배포 전체 가이드](./DEPLOYMENT.md)** - 상세한 배포 방법 및 전략
+- **[배포 가이드 (한국어 설명)](./docs/DEPLOYMENT_GUIDE_KR.md)** - 비개발자도 이해하는 배포 가이드
+- **[배포 플랫폼 비교](./docs/DEPLOYMENT_COMPARISON.md)** - Vercel vs AWS vs 기타 플랫폼
+- **[실전 배포 시나리오](./docs/DEPLOYMENT_SCENARIOS.md)** - 실제 상황별 대응 방법
+- **[GitHub Actions 설정](/.github/SETUP.md)** - CI/CD 설정 가이드
 
-  Available via [Scoop](https://scoop.sh). To install:
+### Git & 협업 문서
 
-  ```powershell
-  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
-  scoop install supabase
-  ```
+- **[Git 완벽 가이드](./docs/GIT_GUIDE_FOR_BEGINNERS.md)** ⭐ - 비개발자를 위한 Git 실전 매뉴얼
 
-  To upgrade:
+### 개발 문서
 
-  ```powershell
-  scoop update supabase
-  ```
-</details>
+- **[워크플로우](./workflow.md)** - 개발 프로세스
+- **[컴포넌트 가이드](./components.json)** - UI 컴포넌트 설정
 
-<details>
-  <summary><b>Linux</b></summary>
+## 🔧 주요 명령어
 
-  Available via [Homebrew](https://brew.sh) and Linux packages.
-
-  #### via Homebrew
-
-  To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-
-  #### via Linux packages
-
-  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
-
-  ```sh
-  sudo apk add --allow-untrusted <...>.apk
-  ```
-
-  ```sh
-  sudo dpkg -i <...>.deb
-  ```
-
-  ```sh
-  sudo rpm -i <...>.rpm
-  ```
-
-  ```sh
-  sudo pacman -U <...>.pkg.tar.zst
-  ```
-</details>
-
-<details>
-  <summary><b>Other Platforms</b></summary>
-
-  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
-
-  ```sh
-  go install github.com/supabase/cli@latest
-  ```
-
-  Add a symlink to the binary in `$PATH` for easier access:
-
-  ```sh
-  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
-  ```
-
-  This works on other non-standard Linux distros.
-</details>
-
-<details>
-  <summary><b>Community Maintained Packages</b></summary>
-
-  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
-  To install in your working directory:
-
-  ```bash
-  pkgx install supabase
-  ```
-
-  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
-</details>
-
-### Run the CLI
+### 개발
 
 ```bash
-supabase bootstrap
+npm run dev          # 개발 서버 실행
+npm run dev:clean    # .next 폴더 삭제 후 실행
+npm run dev:fresh    # 캐시 완전 초기화 후 실행
+npm run build        # 프로덕션 빌드
+npm run start        # 프로덕션 서버 실행
 ```
 
-Or using npx:
+### 코드 품질
 
 ```bash
-npx supabase bootstrap
+npm run lint         # ESLint 검사
+npm run lint:fix     # ESLint 자동 수정
+npm run type-check   # TypeScript 타입 체크
+npm run format       # Prettier 포맷팅
+npm run format:check # Prettier 검사
 ```
 
-The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
+### 배포
 
-## Docs
-
-Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
-
-## Breaking changes
-
-We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
-
-However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
-
-## Developing
-
-To run from source:
-
-```sh
-# Go >= 1.22
-go run . help
+```bash
+npm run deploy:vercel   # Production 배포
+npm run deploy:preview  # Preview 배포
 ```
+
+### Docker
+
+```bash
+npm run docker:build    # Docker 이미지 빌드
+npm run docker:run      # Docker 컨테이너 실행
+npm run docker:up       # Docker Compose 시작
+npm run docker:down     # Docker Compose 종료
+```
+
+### Supabase
+
+```bash
+npm run supabase:start      # 로컬 Supabase 시작
+npm run supabase:stop       # 로컬 Supabase 중지
+npm run supabase:types      # DB 타입 생성
+npm run supabase:migration  # 마이그레이션 생성
+npm run supabase:push       # 마이그레이션 적용
+```
+
+## 🌟 주요 기능
+
+- ✅ YouTube 영상 기반 쉐도잉 학습
+- ✅ AI 자막 분석 및 번역
+- ✅ 구간 반복 재생
+- ✅ 학습 진도 추적
+- ✅ 사용자 인증 (Supabase Auth)
+- ✅ 관리자 CMS
+- 🚧 AI 발음 분석 (개발 중)
+
+## 📁 프로젝트 구조
+
+```
+shadowing-ninja/
+├── src/
+│   ├── app/              # Next.js App Router 페이지
+│   │   ├── api/          # API Routes
+│   │   ├── admin/        # 관리자 페이지
+│   │   ├── auth/         # 인증 페이지
+│   │   └── ...
+│   ├── components/       # React 컴포넌트
+│   ├── lib/             # 유틸리티 함수
+│   ├── store/           # 상태 관리 (Zustand)
+│   ├── types/           # TypeScript 타입 정의
+│   └── utils/           # Supabase 클라이언트 등
+├── supabase/
+│   ├── migrations/      # DB 마이그레이션
+│   └── schema.sql       # DB 스키마
+├── public/              # 정적 파일
+├── docs/                # 문서
+├── .github/
+│   └── workflows/       # GitHub Actions
+├── Dockerfile           # Docker 설정
+├── docker-compose.yml   # Docker Compose 설정
+└── vercel.json          # Vercel 배포 설정
+```
+
+## 🔐 환경 변수
+
+필수 환경 변수:
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Google AI
+GOOGLE_GENERATIVE_AI_API_KEY=your_google_ai_key
+
+# Application
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV=development
+```
+
+상세한 설정은 [.env.example](./.env.example) 파일을 참고하세요.
+
+## 🧪 테스트
+
+```bash
+# 테스트 실행 (추가 예정)
+npm test
+
+# E2E 테스트 (추가 예정)
+npm run test:e2e
+```
+
+## 📊 CI/CD
+
+이 프로젝트는 GitHub Actions를 사용한 완전 자동화된 CI/CD 파이프라인을 갖추고 있습니다.
+
+### Pull Request 시
+
+- ✅ 린트 및 타입 체크
+- ✅ 빌드 테스트
+- ✅ 보안 스캔
+- ✅ Lighthouse 성능 측정
+- ✅ Vercel Preview 자동 배포
+
+### Main 브랜치 푸시 시
+
+- ✅ 모든 CI 체크 재실행
+- ✅ Vercel Production 자동 배포
+- ✅ Supabase DB 마이그레이션
+- ✅ 배포 완료 알림
+
+자세한 내용은 [CI/CD 가이드](./.github/SETUP.md)를 참고하세요.
+
+## 🤝 기여하기
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'feat: Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+### 커밋 메시지 규칙
+
+```
+feat: 새로운 기능 추가
+fix: 버그 수정
+docs: 문서 수정
+style: 코드 포맷팅
+refactor: 코드 리팩토링
+test: 테스트 코드
+chore: 빌드/설정 변경
+perf: 성능 개선
+```
+
+## 📄 라이선스
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
+## 🙏 감사의 말
+
+- [Next.js](https://nextjs.org/) - React 프레임워크
+- [Supabase](https://supabase.com/) - 백엔드 플랫폼
+- [Vercel](https://vercel.com/) - 배포 플랫폼
+- [Google Generative AI](https://ai.google.dev/) - AI 기능
+
+## 📞 문의
+
+문제가 발생하거나 질문이 있으신 경우:
+
+1. [GitHub Issues](https://github.com/your-username/shadowing-ninja/issues) 생성
+2. [배포 가이드](./docs/DEPLOYMENT_GUIDE_KR.md) 참고
+3. [실전 시나리오](./docs/DEPLOYMENT_SCENARIOS.md)에서 유사한 상황 찾기
+
+---
+
+Made with ❤️ by Shadowing Ninja Team
