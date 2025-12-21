@@ -3,11 +3,12 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ videoId: string }> }
+    props: { params: Promise<{ videoId: string }> }
 ) {
     try {
         const supabase = await createClient();
-        const { videoId } = await params;
+        const params = await props.params;
+        const { videoId } = params;
 
         const { data, error } = await supabase
             .from('curated_videos')

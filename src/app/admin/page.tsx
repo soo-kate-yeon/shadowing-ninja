@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { extractVideoId } from '@/lib/transcript-parser';
 import { Sentence } from '@/types';
@@ -9,7 +9,7 @@ import { createClient } from '@/utils/supabase/client';
 
 import { useSearchParams } from 'next/navigation';
 
-export default function AdminPage() {
+function AdminPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const editId = searchParams.get('id');
@@ -596,5 +596,13 @@ export default function AdminPage() {
                 )
             }
         </div >
+    );
+}
+
+export default function AdminPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <AdminPageContent />
+        </Suspense>
     );
 }
