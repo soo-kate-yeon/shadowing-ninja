@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { extractVideoId } from '@/lib/transcript-parser';
+import { extractVideoId, parseTranscriptToSentences } from '@/lib/transcript-parser';
 import { Sentence } from '@/types';
 import YouTubePlayer from '@/components/YouTubePlayer';
 import { createClient } from '@/utils/supabase/client';
@@ -16,11 +16,14 @@ function AdminPageContent() {
 
     const supabase = createClient();
     const [loading, setLoading] = useState(false);
+    const [loadingStatus, setLoadingStatus] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
     // Form state
     const [youtubeUrl, setYoutubeUrl] = useState('');
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
     const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
     const [tags, setTags] = useState('');
 
@@ -38,6 +41,7 @@ function AdminPageContent() {
     // Draft State
     const [isDraftSaving, setIsDraftSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    const draftTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const getVideoId = () => extractVideoId(youtubeUrl);
 
@@ -66,6 +70,8 @@ function AdminPageContent() {
 
                 if (data) {
                     setYoutubeUrl(data.youtube_url || `https://youtu.be/${data.video_id}`);
+                    setTitle(data.title || '');
+                    setDescription(data.description || '');
                     setDifficulty(data.difficulty || 'intermediate');
                     setTags(data.tags?.join(', ') || '');
                     setSentences(data.transcript || []);
@@ -89,6 +95,8 @@ function AdminPageContent() {
             if (data?.data && confirm('Recover previous draft session?')) {
                 const d = data.data as any;
                 setYoutubeUrl(d.youtubeUrl || '');
+                setTitle(d.title || '');
+                setDescription(d.description || '');
                 setDifficulty(d.difficulty || 'intermediate');
                 setTags(d.tags || '');
                 setRawScript(d.rawScript || '');
@@ -104,12 +112,20 @@ function AdminPageContent() {
     useEffect(() => {
         // ... (Keep existing logic, works for edit mode too as a safety net)
         const saveDraft = async () => {
+            // Skip if currently saving manually to prevent race condition
+            if (loading) {
+                console.log('[Admin] Skipping draft save - manual save in progress');
+                return;
+            }
+
             if (!youtubeUrl && !rawScript && sentences.length === 0) return;
 
             setIsDraftSaving(true);
             try {
                 const draftData = {
                     youtubeUrl,
+                    title,
+                    description,
                     difficulty,
                     tags,
                     rawScript,
@@ -134,9 +150,20 @@ function AdminPageContent() {
             }
         };
 
-        const timer = setTimeout(saveDraft, 5000);
-        return () => clearTimeout(timer);
-    }, [youtubeUrl, difficulty, tags, rawScript, sentences, lastSyncTime]);
+        // Clear existing timer
+        if (draftTimerRef.current) {
+            clearTimeout(draftTimerRef.current);
+        }
+
+        // Set new timer with 10 second debounce
+        draftTimerRef.current = setTimeout(saveDraft, 10000);
+
+        return () => {
+            if (draftTimerRef.current) {
+                clearTimeout(draftTimerRef.current);
+            }
+        };
+    }, [youtubeUrl, title, description, difficulty, tags, rawScript, sentences, lastSyncTime]);
 
 
     // --- CMS List Logic ---
@@ -161,22 +188,44 @@ function AdminPageContent() {
         if (!confirm('Auto translate all sentences? This will overwrite existing translations.')) return;
 
         setLoading(true);
+        setLoadingStatus('Starting translation...');
         try {
-            const texts = sentences.map(s => s.text);
-            const res = await fetch('/api/admin/translate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sentences: texts })
-            });
+            const CHUNK_SIZE = 30;
+            const totalSentences = sentences.length;
+            const newSentences = [...sentences];
 
-            if (!res.ok) throw new Error('Translation failed');
+            for (let i = 0; i < totalSentences; i += CHUNK_SIZE) {
+                const chunk = sentences.slice(i, i + CHUNK_SIZE);
+                const batchNum = Math.floor(i / CHUNK_SIZE) + 1;
+                const totalBatches = Math.ceil(totalSentences / CHUNK_SIZE);
 
-            const { translations } = await res.json();
+                setLoadingStatus(`Translating batch ${batchNum}/${totalBatches}...`);
 
-            setSentences(prev => prev.map((s, idx) => ({
-                ...s,
-                translation: translations[idx] || ''
-            })));
+                const texts = chunk.map(s => s.text);
+                const res = await fetch('/api/admin/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sentences: texts })
+                });
+
+                if (!res.ok) throw new Error(`Translation failed at batch ${batchNum}`);
+
+                const { translations } = await res.json();
+
+                // Update the newSentences array in place for this chunk
+                translations.forEach((translation: string, idx: number) => {
+                    const sentenceIdx = i + idx;
+                    if (newSentences[sentenceIdx]) {
+                        newSentences[sentenceIdx] = {
+                            ...newSentences[sentenceIdx],
+                            translation: translation || ''
+                        };
+                    }
+                });
+
+                // Update state incrementally to provide feedback
+                setSentences([...newSentences]);
+            }
 
             setSuccess(true);
             setTimeout(() => setSuccess(false), 2000);
@@ -185,6 +234,7 @@ function AdminPageContent() {
             setError(err.message);
         } finally {
             setLoading(false);
+            setLoadingStatus(null);
         }
     };
 
@@ -225,15 +275,91 @@ function AdminPageContent() {
             const target = e.target as HTMLElement;
             const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
-            // 1. Sync Trigger (Only in Raw Script Textarea or at Body level)
-            // We allow this specific shortcut in the script textarea for workflow speed
-            const isScriptTextarea = target === scriptRef.current;
-            const isBody = target === document.body;
+            // 1. Sync Trigger / Split Trigger (Only in Raw Script Textarea or Parsed Sentence Textarea or at Body level)
+            if (e.key === ']' || e.code === 'BracketRight') {
+                const isScriptTextarea = target === scriptRef.current;
+                const isBody = target === document.body;
 
-            if ((isScriptTextarea || isBody) && (e.key === ']' || e.code === 'BracketRight')) {
-                e.preventDefault();
-                handleSyncTrigger();
-                return;
+                // Case A: Raw Script sync
+                if (isScriptTextarea || isBody) {
+                    e.preventDefault();
+                    handleSyncTrigger();
+                    return;
+                }
+
+                // Case B: Split inside a parsed sentence
+                if (target instanceof HTMLTextAreaElement && target.classList.contains('sentence-textarea')) {
+                    e.preventDefault();
+                    const sentenceId = target.getAttribute('data-id');
+                    if (!sentenceId) return;
+
+                    const cursorPosition = target.selectionStart;
+                    const fullText = target.value;
+                    const splitText = fullText.substring(0, cursorPosition).trim();
+                    const remainingText = fullText.substring(cursorPosition).trimStart();
+
+                    if (!splitText || !remainingText) return;
+
+                    setSentences(prev => {
+                        const index = prev.findIndex(s => s.id === sentenceId);
+                        if (index === -1) return prev;
+
+                        const currentSentence = prev[index];
+                        const newSentence: Sentence = {
+                            id: crypto.randomUUID(),
+                            text: remainingText,
+                            startTime: currentSentence.endTime, // Placeholder, usually they'll adjust
+                            endTime: currentSentence.endTime,
+                            highlights: []
+                        };
+
+                        const nextSentences = [...prev];
+                        nextSentences[index] = { ...currentSentence, text: splitText };
+                        nextSentences.splice(index + 1, 0, newSentence);
+                        return nextSentences;
+                    });
+                    return;
+                }
+            }
+
+            // 1.1 Merge Trigger (Only in Parsed Sentence Textarea)
+            if (e.key === '[' || e.code === 'BracketLeft') {
+                if (target instanceof HTMLTextAreaElement && target.classList.contains('sentence-textarea')) {
+                    e.preventDefault();
+                    const sentenceId = target.getAttribute('data-id');
+                    if (!sentenceId) return;
+
+                    setSentences(prev => {
+                        const index = prev.findIndex(s => s.id === sentenceId);
+                        if (index <= 0) return prev; // No previous sentence to merge with
+
+                        const prevSentence = prev[index - 1];
+                        const currentSentence = prev[index];
+
+                        const nextSentences = [...prev];
+                        // Merge current into previous
+                        nextSentences[index - 1] = {
+                            ...prevSentence,
+                            text: prevSentence.text + ' ' + currentSentence.text,
+                            endTime: currentSentence.endTime,
+                        };
+                        // Remove current
+                        nextSentences.splice(index, 1);
+
+                        // Focus handling is tricky here, but standard behavior usually focuses the previous one
+                        setTimeout(() => {
+                            const allTAS = document.querySelectorAll('.sentence-textarea');
+                            const prevTA = Array.from(allTAS).find(ta => ta.getAttribute('data-id') === prevSentence.id) as HTMLTextAreaElement;
+                            if (prevTA) {
+                                prevTA.focus();
+                                // Put cursor at the junction
+                                prevTA.setSelectionRange(prevSentence.text.length + 1, prevSentence.text.length + 1);
+                            }
+                        }, 0);
+
+                        return nextSentences;
+                    });
+                }
             }
 
             // 2. Video Navigation (Arrow Keys) - Only when NOT editing text
@@ -253,7 +379,17 @@ function AdminPageContent() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [player, rawScript, lastSyncTime]);
+    }, [player, rawScript, lastSyncTime, sentences]);
+
+    // Auto-height for all textareas on sentences update
+    useEffect(() => {
+        const textareas = document.querySelectorAll('.sentence-textarea');
+        textareas.forEach(ta => {
+            const t = ta as HTMLTextAreaElement;
+            t.style.height = 'auto';
+            t.style.height = t.scrollHeight + 'px';
+        });
+    }, [sentences]);
 
     const updateSentenceTime = (id: string, field: 'startTime' | 'endTime', value: number) => {
         setSentences(prev => prev.map(s =>
@@ -276,6 +412,21 @@ function AdminPageContent() {
     };
 
     const handleSave = async () => {
+        console.log('[Admin] Starting handleSave...');
+
+        // Cancel any pending draft saves to prevent race condition
+        if (draftTimerRef.current) {
+            console.log('[Admin] Clearing pending draft save timer');
+            clearTimeout(draftTimerRef.current);
+            draftTimerRef.current = null;
+        }
+
+        // Wait briefly if draft is currently saving
+        if (isDraftSaving) {
+            console.log('[Admin] Waiting for draft save to complete...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
         const videoId = getVideoId();
         if (!videoId) {
             setError('Invalid YouTube URL');
@@ -291,15 +442,33 @@ function AdminPageContent() {
         setError(null);
 
         try {
+            setLoadingStatus('Preparing save...');
+            console.log('[Admin] Calculating duration...');
             const duration = player ? player.getDuration() : sentences[sentences.length - 1].endTime;
 
-            const { data: { user } } = await supabase.auth.getUser();
+            setLoadingStatus('Checking authentication...');
+            console.log('[Admin] Calling supabase.auth.getUser()...');
+
+            // Use a more resilient way to get the user
+            const { data: authData, error: authError } = await supabase.auth.getUser();
+
+            if (authError) {
+                console.error('[Admin] Auth error:', authError);
+                throw new Error(`Authentication failed: ${authError.message}`);
+            }
+
+            const user = authData?.user;
+            console.log('[Admin] User found:', user?.id || 'none');
+
+            setLoadingStatus('Saving to database...');
+            console.log('[Admin] Upserting to curated_videos...');
 
             // USING DIRECT SUPABASE UPSERT (Bypassing API for full Admin power)
             const payload = {
                 video_id: videoId,
                 source_url: youtubeUrl,
-                title: `Video ${videoId}`, // Ideally fetch title from YouTube API, but placeholder is fine for now
+                title: title || `Video ${videoId}`,
+                description: description,
                 snippet_start_time: 0,
                 snippet_end_time: duration,
                 difficulty,
@@ -315,8 +484,13 @@ function AdminPageContent() {
                 .from('curated_videos')
                 .upsert(payload, { onConflict: 'video_id' });
 
-            if (dbError) throw dbError;
+            if (dbError) {
+                console.error('[Admin] Database error:', dbError);
+                throw dbError;
+            }
 
+            console.log('[Admin] Save successful!');
+            setLoadingStatus('Cleaning up drafts...');
             setSuccess(true);
 
             // Clear draft
@@ -328,15 +502,19 @@ function AdminPageContent() {
                 if (!editId) {
                     setRawScript('');
                     setYoutubeUrl('');
+                    setTitle('');
+                    setDescription('');
                     setSentences([]);
                     setLastSyncTime(0);
                 }
             }, 2000);
 
         } catch (err: any) {
-            setError(err.message);
+            console.error('[Admin] handleSave caught error:', err);
+            setError(err.message || 'An unknown error occurred');
         } finally {
             setLoading(false);
+            setLoadingStatus(null);
         }
     };
 
@@ -370,6 +548,18 @@ function AdminPageContent() {
                             onChange={e => setYoutubeUrl(e.target.value)}
                             placeholder="YouTube URL..."
                         />
+                        <input
+                            className="px-3 py-2 rounded-lg border border-secondary-300 w-64 text-sm"
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            placeholder="Video Title..."
+                        />
+                        <input
+                            className="px-3 py-2 rounded-lg border border-secondary-300 flex-1 text-sm"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Video Description..."
+                        />
                         <select
                             className="px-3 py-2 rounded-lg border border-secondary-300 text-sm"
                             value={difficulty}
@@ -379,15 +569,89 @@ function AdminPageContent() {
                             <option value="intermediate">Intermediate</option>
                             <option value="advanced">Advanced</option>
                         </select>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={async () => {
+                                    if (!youtubeUrl) { setError("Please enter a YouTube URL"); return; };
+                                    setLoading(true);
+                                    setLoadingStatus('Fetching raw text from YouTube...');
+                                    try {
+                                        const res = await fetch(`/api/admin/transcript?url=${encodeURIComponent(youtubeUrl)}`);
+                                        const data = await res.json();
+                                        if (!res.ok) throw new Error(data.error || 'Failed to fetch transcript');
+
+                                        setLoadingStatus('Processing raw text...');
+                                        if (data.transcript) {
+                                            const rawText = data.transcript.map((item: any) => item.text).join(' ');
+                                            setRawScript(rawText);
+                                            setSuccess(true);
+                                            setTimeout(() => setSuccess(false), 2000);
+                                        }
+                                    } catch (err: any) {
+                                        setError(err.message);
+                                    } finally {
+                                        setLoading(false);
+                                        setLoadingStatus(null);
+                                    }
+                                }}
+                                className="bg-secondary-600 hover:bg-secondary-700 text-surface font-bold py-2 px-3 rounded-lg disabled:opacity-50 text-[10px] uppercase tracking-wider transition-colors"
+                                disabled={loading || !youtubeUrl}
+                                title="Fetch raw text without timestamps"
+                            >
+                                Fetch Raw Text
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!youtubeUrl) { setError("Please enter a YouTube URL"); return; };
+                                    setLoading(true);
+                                    setLoadingStatus('Fetching subtitles from YouTube...');
+                                    try {
+                                        const res = await fetch(`/api/admin/transcript?url=${encodeURIComponent(youtubeUrl)}`);
+                                        const data = await res.json();
+                                        if (!res.ok) throw new Error(data.error || 'Failed to fetch transcript');
+
+                                        setLoadingStatus('Analyzing and parsing sentences...');
+                                        if (data.transcript) {
+                                            const parsedSentences = parseTranscriptToSentences(data.transcript);
+                                            setSentences(parsedSentences);
+                                            if (parsedSentences.length > 0) {
+                                                setLastSyncTime(parsedSentences[parsedSentences.length - 1].endTime);
+                                            }
+                                            setSuccess(true);
+                                            setTimeout(() => setSuccess(false), 2000);
+                                        }
+                                    } catch (err: any) {
+                                        setError(err.message);
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="bg-primary-600 hover:bg-primary-700 text-surface font-bold py-2 px-3 rounded-lg disabled:opacity-50 text-[10px] uppercase tracking-wider transition-colors"
+                                disabled={loading || !youtubeUrl}
+                                title="Auto-parse into sentences"
+                            >
+                                Auto-Parse Sentences
+                            </button>
+                        </div>
                         <button
                             onClick={handleSave}
                             disabled={loading || sentences.length === 0}
-                            className="bg-primary-500 hover:bg-primary-600 text-surface font-bold py-2 px-6 rounded-lg disabled:opacity-50 text-sm transition-colors"
+                            className="bg-primary-500 hover:bg-primary-600 text-white font-bold py-2.5 px-8 rounded-xl disabled:opacity-50 text-base shadow-lg shadow-primary-500/20 active:scale-95 transition-all flex items-center gap-2"
                         >
-                            {loading ? 'Processing...' : 'Save & Publish'}
+                            {loading && (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            )}
+                            {loading ? (loadingStatus || 'Processing...') : 'Save & Publish'}
                         </button>
                     </div>
                 </div>
+
+                {loadingStatus && (
+                    <div className="bg-primary-50 border border-primary-100 rounded-xl p-3 mb-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="w-5 h-5 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                        <p className="text-primary-800 text-sm font-medium">{loadingStatus}</p>
+                    </div>
+                )}
 
                 {error && (
                     <div className="bg-error/10 border border-error rounded-lg p-3 mb-4 shrink-0">
@@ -491,18 +755,26 @@ function AdminPageContent() {
                                                     value={s.text}
                                                     onChange={e => updateSentenceText(s.id, 'text', e.target.value)}
                                                     rows={1}
+                                                    data-id={s.id}
                                                     onInput={(e) => {
                                                         const target = e.target as HTMLTextAreaElement;
                                                         target.style.height = 'auto';
                                                         target.style.height = target.scrollHeight + 'px';
                                                     }}
-                                                    className="w-full bg-transparent font-medium text-lg text-secondary-900 focus:outline-none border-b border-transparent focus:border-secondary-300 pb-1 resize-none overflow-hidden"
+                                                    className="w-full bg-transparent font-medium text-lg text-secondary-900 focus:outline-none border-b border-transparent focus:border-secondary-300 pb-1 resize-none overflow-hidden sentence-textarea"
                                                     placeholder="Original Sentence"
                                                 />
-                                                <input
+                                                <textarea
                                                     value={s.translation || ''}
                                                     onChange={e => updateSentenceText(s.id, 'translation', e.target.value)}
-                                                    className="w-full bg-transparent text-sm text-secondary-600 focus:outline-none border-b border-secondary-200 focus:border-primary-300 pb-1 placeholder:text-secondary-300"
+                                                    rows={1}
+                                                    data-id={s.id}
+                                                    onInput={(e) => {
+                                                        const target = e.target as HTMLTextAreaElement;
+                                                        target.style.height = 'auto';
+                                                        target.style.height = target.scrollHeight + 'px';
+                                                    }}
+                                                    className="w-full bg-transparent text-sm text-secondary-600 focus:outline-none border-b border-secondary-200 focus:border-primary-300 pb-1 placeholder:text-secondary-300 resize-none overflow-hidden sentence-textarea"
                                                     placeholder="Korean Translation (Click 'Auto Translate' above)"
                                                 />
 

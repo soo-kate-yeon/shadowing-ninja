@@ -132,9 +132,14 @@ export default function HomePage() {
                                                     </div>
                                                 </div>
                                                 <div className="p-4">
-                                                    <h3 className="font-semibold text-secondary-900 line-clamp-2 mb-1">
+                                                    <h3 className="font-semibold text-secondary-900 line-clamp-1 mb-1">
                                                         {video.title}
                                                     </h3>
+                                                    {video.description && (
+                                                        <p className="text-xs text-secondary-500 line-clamp-2 mb-2">
+                                                            {video.description}
+                                                        </p>
+                                                    )}
                                                     <div className="flex items-center gap-2 text-sm text-secondary-600">
                                                         {video.difficulty && (
                                                             <span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-xs font-medium">
