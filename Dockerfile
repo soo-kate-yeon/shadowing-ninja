@@ -8,6 +8,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
+# Install Python and youtube-transcript-api
+RUN apk add --no-cache python3 py3-pip && \
+    pip3 install youtube-transcript-api --break-system-packages
+
 # Stage 2: Builder
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -38,6 +42,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+
+# Install Python for runtime
+RUN apk add --no-cache python3 py3-pip && \
+    pip3 install youtube-transcript-api --break-system-packages
 
 # Copy necessary files
 COPY --from=builder /app/public ./public
