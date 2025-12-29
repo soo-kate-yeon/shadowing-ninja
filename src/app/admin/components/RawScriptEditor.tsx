@@ -4,7 +4,7 @@ interface RawScriptEditorProps {
     youtubeUrl: string;
     onChange: (value: string) => void;
     onFetchTranscript: () => void;
-    onNormalizeSpacing: () => void;
+    onRefineScript: () => void;
     scriptRef: React.RefObject<HTMLTextAreaElement>;
 }
 
@@ -14,7 +14,7 @@ export function RawScriptEditor({
     youtubeUrl,
     onChange,
     onFetchTranscript,
-    onNormalizeSpacing,
+    onRefineScript,
     scriptRef
 }: RawScriptEditorProps) {
     return (
@@ -30,11 +30,12 @@ export function RawScriptEditor({
                     🎬 Fetch Transcript
                 </button>
                 <button
-                    onClick={onNormalizeSpacing}
-                    className="bg-white hover:bg-white/80 text-primary-600 px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border border-primary-200 transition-colors"
-                    title="Remove line breaks"
+                    onClick={onRefineScript}
+                    disabled={!rawScript.trim()}
+                    className="bg-white hover:bg-white/80 disabled:opacity-50 text-primary-600 px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border border-primary-200 transition-colors"
+                    title="Clean up non-speech text like > or [Music]"
                 >
-                    Normalize Spacing
+                    ✨ Refine Script
                 </button>
             </div>
             <textarea

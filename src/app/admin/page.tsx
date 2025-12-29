@@ -130,7 +130,7 @@ function AdminPageContent() {
                     difficulty,
                     tags,
                     rawScript,
-                    sentences,
+                    sentences: sentences,  // Direct access from hook
                     lastSyncTime,
                 };
 
@@ -185,6 +185,18 @@ function AdminPageContent() {
                 console.error(err.message);
             }
         }
+    };
+
+    // --- Refine Script Logic ---
+    const handleRefineScript = () => {
+        // Remove non-speech text like >, [Music], [Applause], etc.
+        const refined = rawScript
+            .replace(/^>.*$/gm, '')  // Remove lines starting with >
+            .replace(/\[.*?\]/g, '')  // Remove [Music], [Applause], etc.
+            .replace(/\n\s*\n/g, '\n')  // Remove extra blank lines
+            .trim();
+
+        setRawScript(refined);
     };
 
     // --- Fetch Transcript Logic ---
@@ -393,7 +405,7 @@ function AdminPageContent() {
                             youtubeUrl={youtubeUrl}
                             onChange={setRawScript}
                             onFetchTranscript={handleFetchTranscript}
-                            onNormalizeSpacing={() => setRawScript(prev => prev.replace(/\n/g, ' ').replace(/\s+/g, ' '))}
+                            onRefineScript={handleRefineScript}
                             scriptRef={scriptRef}
                         />
 
