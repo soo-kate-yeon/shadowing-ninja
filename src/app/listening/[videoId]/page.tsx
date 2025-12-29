@@ -32,19 +32,15 @@ export default function ListeningPage() {
 
     // Store
     const addSession = useStore((state) => state.addSession);
-    const getVideo = useStore((state) => state.getVideo);
-    const video = getVideo(videoId);
     const storeHighlights = useStore((state) => state.highlights);
     const addHighlight = useStore((state) => state.addHighlight);
     const removeHighlight = useStore((state) => state.removeHighlight);
-    const updateSessionPosition = useStore((state) => state.updateSessionPosition);
     const sessions = useStore((state) => state.sessions);
 
     // Filter highlights for this video
     const sessionHighlights = useMemo(() =>
         storeHighlights.filter(h => h.videoId === videoId),
         [storeHighlights, videoId]);
-
 
     // Prevent infinite loop: only fetch transcript once per videoId/sessionId
     const hasLoadedRef = useRef<string | null>(null);
@@ -84,7 +80,7 @@ export default function ListeningPage() {
                     transcriptSentences = data.transcript || [];
                 }
 
-                console.log(`📦 [SessionPage] Data loaded:`, {
+                console.log(`📦 [ListeningPage] Data loaded:`, {
                     title: data.title,
                     sentenceCount: transcriptSentences.length,
                     sessionId
@@ -99,16 +95,14 @@ export default function ListeningPage() {
 
                 // Check store for user progress
                 const existingSession = sessions[videoId];
-                if (existingSession) {
-                    setCurrentStep(existingSession.currentStep);
-                } else {
+                if (!existingSession) {
                     addSession({
                         id: crypto.randomUUID(),
                         videoId,
                         progress: 0,
                         lastAccessedAt: Date.now(),
                         totalSentences: transcriptSentences.length,
-                        timeLeft: '00:00', // Could calculate from sentences
+                        timeLeft: '00:00',
                         currentStep: 1,
                         currentSentence: undefined
                     });
@@ -127,7 +121,6 @@ export default function ListeningPage() {
         fetchData();
     }, [videoId, sessionId]);
 
-
     const handlePlayerReady = (playerInstance: YT.Player) => {
         setPlayer(playerInstance);
     };
@@ -139,7 +132,7 @@ export default function ListeningPage() {
     const handleSeek = (startTime: number) => {
         if (player) {
             player.seekTo(startTime, true);
-            player.playVideo(); // Optional: auto-play after seek
+            player.playVideo();
         }
     };
 
@@ -172,7 +165,6 @@ export default function ListeningPage() {
     const handleLoopToggle = (sentenceId: string, isLooping: boolean) => {
         if (isLooping) {
             setLoopingSentenceId(sentenceId);
-            // Find the sentence and start playing it
             const sentence = sentences.find(s => s.id === sentenceId);
             if (sentence && player) {
                 player.seekTo(sentence.startTime, true);
@@ -193,110 +185,40 @@ export default function ListeningPage() {
         const checkLoop = setInterval(() => {
             if (player && player.getCurrentTime) {
                 const currentTime = player.getCurrentTime();
-                // If we've passed the end of the looping sentence, restart it
                 if (currentTime >= loopingSentence.endTime) {
                     player.seekTo(loopingSentence.startTime, true);
                     player.playVideo();
                 }
             }
-        }, 100); // Check every 100ms
+        }, 100);
 
         return () => clearInterval(checkLoop);
     }, [loopingSentenceId, player, sentences]);
-
-    // Position Restoration Logic
-    const hasRestoredPosition = useRef(false);
-
-    useEffect(() => {
-        // Skip if already restored, or if player/sentences aren't ready
-        if (hasRestoredPosition.current || !player || sentences.length === 0) {
-            return;
-        }
-
-        const existingSession = sessions[videoId];
-
-        // Only restore if:
-        // 1. Session exists
-        // 2. Current step is 2 (script view) or higher
-        // 3. We have a valid saved sentence index
-        if (existingSession &&
-            existingSession.currentStep >= 2 &&
-            existingSession.currentSentence !== undefined &&
-            existingSession.currentSentence < sentences.length) {
-
-            const targetSentence = sentences[existingSession.currentSentence];
-            console.log(`Restoring position to sentence #${existingSession.currentSentence}: ${targetSentence.text.substring(0, 30)}...`);
-
-            // Add a small delay to ensure player is fully initialized and ready to seek
-            setTimeout(() => {
-                if (player && player.seekTo) {
-                    player.seekTo(targetSentence.startTime, true);
-                    // Optional: Auto-play could be added here if desired
-                    // player.playVideo();
-                }
-            }, 500);
-
-            hasRestoredPosition.current = true;
-        } else if (existingSession && existingSession.currentStep === 1) {
-            // For step 1, we just mark as restored without seeking (start from beginning)
-            hasRestoredPosition.current = true;
-        }
-    }, [player, sentences, videoId, sessions]);
 
     // Find active sentence
     const activeSentenceIndex = sentences.findIndex(
         (s) => currentTime >= s.startTime && currentTime < s.endTime
     );
 
-    // Track active sentence position (only in Step 2)
-    // Use ref to track last updated index to prevent excessive updates
-    const lastTrackedSentenceRef = useRef<number>(-1);
-
-    useEffect(() => {
-        // Only update if:
-        // 1. We're in Step 2
-        // 2. We have a valid sentence index
-        // 3. The sentence has actually changed (not the same as last tracked)
-        if (currentStep === 2 &&
-            activeSentenceIndex >= 0 &&
-            activeSentenceIndex !== lastTrackedSentenceRef.current) {
-
-            updateSessionPosition(videoId, 2, activeSentenceIndex);
-            lastTrackedSentenceRef.current = activeSentenceIndex;
-        }
-    }, [activeSentenceIndex, currentStep, videoId]); // Removed updateSessionPosition from deps
-
     // Auto-scroll to active sentence
     useEffect(() => {
-        if (activeSentenceRef.current) {
+        if (activeSentenceRef.current && isScriptVisible) {
             activeSentenceRef.current.scrollIntoView({
                 behavior: 'smooth',
                 block: 'center',
             });
         }
-    }, [activeSentenceIndex]);
+    }, [activeSentenceIndex, isScriptVisible]);
 
     const handleNextStep = () => {
-        if (currentStep === 1) {
-            setCurrentStep(2);
-            updateSessionPosition(videoId, 2);
-        } else {
-            router.push(`/shadowing/${videoId}${sessionId ? `?sessionId=${sessionId}` : ''}`);
-        }
-    };
-
-    const handlePrevStep = () => {
-        if (currentStep === 2) {
-            setCurrentStep(1);
-            updateSessionPosition(videoId, 1);
-        }
+        router.push(`/shadowing/${videoId}${sessionId ? `?sessionId=${sessionId}` : ''}`);
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen bg-secondary-200 text-secondary-500">Loading Session...</div>;
+        return <div className="flex items-center justify-center h-screen bg-secondary-200 text-secondary-500">Loading...</div>;
     }
 
-    if (error && error !== 'This video has no transcript available') {
+    if (error) {
         return (
             <div className="flex flex-col items-center justify-center h-screen gap-4 bg-secondary-200">
                 <p className="text-error">{error}</p>
@@ -310,104 +232,84 @@ export default function ListeningPage() {
             {/* Header */}
             <ListeningHeader
                 title={videoData?.title || 'Loading...'}
-                currentStep={currentStep}
                 onBack={() => router.push('/home')}
                 onNextStep={handleNextStep}
-                onPrevStep={handlePrevStep}
             />
 
-            {currentStep === 1 ? (
-                // Step 1: Listen without script
-                <main className="flex-1 flex gap-6 p-8 h-[calc(100vh-80px)]">
-                    {/* Left: Video Player */}
-                    <div className="w-1/2 h-full flex flex-col">
-                        <h2 className="text-2xl font-bold text-neutral-900 leading-relaxed mb-6 tracking-tight whitespace-pre-wrap">
-                            처음에는 스크립트 없이 끝까지 들어보세요.
-                        </h2>
+            {/* Main Content - Single Layout */}
+            <main className="flex-1 flex gap-6 p-8 h-[calc(100vh-80px)]">
+                {/* Left: Video Player */}
+                <div className="w-1/2 h-full flex flex-col">
+                    <h2 className="text-2xl font-bold text-neutral-900 leading-relaxed mb-6 tracking-tight">
+                        스크립트 토글로 학습 방식을 선택하세요
+                    </h2>
 
-                        <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
-                            <YouTubePlayer
-                                videoId={videoId}
-                                className="w-full h-full"
-                                onReady={handlePlayerReady}
-                                onTimeUpdate={handleTimeUpdate}
-                                startSeconds={videoData?.snippet_start_time}
-                                endSeconds={videoData?.snippet_end_time}
-                            />
+                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
+                        <YouTubePlayer
+                            videoId={videoId}
+                            className="w-full h-full"
+                            onReady={handlePlayerReady}
+                            onTimeUpdate={handleTimeUpdate}
+                            startSeconds={videoData?.snippet_start_time}
+                            endSeconds={videoData?.snippet_end_time}
+                        />
+                    </div>
+                </div>
+
+                {/* Right: Script Container */}
+                <div className="w-1/2 h-full bg-secondary-50 rounded-2xl overflow-hidden flex flex-col shadow-sm">
+                    {/* Script Toggle */}
+                    <ScriptToggle
+                        isScriptVisible={isScriptVisible}
+                        onToggle={() => setIsScriptVisible(!isScriptVisible)}
+                    />
+
+                    {/* Script Content or Placeholder */}
+                    {isScriptVisible ? (
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <div className="flex flex-col gap-6 pb-20">
+                                {sentences.map((sentence, idx) => {
+                                    const isActive = idx === activeSentenceIndex;
+                                    const isLooping = loopingSentenceId === sentence.id;
+                                    const sentenceHighlights: Highlight[] = sessionHighlights
+                                        .filter(h => sentence.text.includes(h.originalText))
+                                        .map(h => ({
+                                            id: h.id,
+                                            text: h.originalText,
+                                            comment: h.userNote || ''
+                                        }));
+
+                                    return (
+                                        <div key={sentence.id} ref={isActive ? activeSentenceRef : null}>
+                                            <ScriptLine
+                                                sentence={sentence}
+                                                index={idx}
+                                                videoId={videoId}
+                                                isActive={isActive}
+                                                isLooping={isLooping}
+                                                expanded={false}
+                                                highlights={sentenceHighlights}
+                                                onToggleExpand={() => { }}
+                                                onAddHighlight={handleAddHighlight}
+                                                onRemoveHighlight={handleRemoveHighlight}
+                                                onRestoreHighlight={handleRestoreHighlight}
+                                                onSeek={handleSeek}
+                                                onLoopToggle={handleLoopToggle}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-
-                    {/* Right: Caption */}
-                    <div className="w-1/2 h-full bg-secondary-50 rounded-2xl p-8 flex flex-col items-center justify-center shadow-sm">
-                        <p className="text-2xl font-medium text-secondary-500 text-center mb-8">
-                            처음에는 스크립트 없이 끝까지 들어보세요
-                        </p>
-                    </div>
-                </main>
-            ) : (
-                // Step 2: Script view
-                <main className="flex-1 flex gap-6 p-8 h-[calc(100vh-80px)]">
-                    {/* Left: Video Player */}
-                    <div className="w-1/2 h-full flex flex-col">
-                        <h2 className="text-2xl font-bold text-neutral-900 leading-relaxed mb-6 tracking-tight whitespace-pre-wrap">
-                            이제, 스크립트를 보며 다시 들어보세요.{'\n'}
-                            어려운 문장이 있다면 클릭해서 분석해보세요.
-                        </h2>
-
-                        <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
-                            <YouTubePlayer
-                                videoId={videoId}
-                                className="w-full h-full"
-                                onReady={handlePlayerReady}
-                                onTimeUpdate={handleTimeUpdate}
-                                startSeconds={videoData?.snippet_start_time}
-                                endSeconds={videoData?.snippet_end_time}
-                            />
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center p-8">
+                            <p className="text-2xl font-medium text-secondary-500 text-center">
+                                스크립트 없이 재생하는 중
+                            </p>
                         </div>
-                    </div>
-
-                    {/* Right: Script & Analysis */}
-                    <div className="w-1/2 h-full bg-secondary-50 rounded-2xl p-8 overflow-y-auto relative shadow-sm">
-                        <div className="flex flex-col gap-6 pb-20">
-                            {sentences.map((sentence, idx) => {
-                                const isActive = idx === activeSentenceIndex;
-                                const isLooping = loopingSentenceId === sentence.id;
-                                // Find highlights for this sentence
-                                // Simple check: if highlight text is contained in sentence text
-                                const sentenceHighlights: Highlight[] = sessionHighlights
-                                    .filter(h => sentence.text.includes(h.originalText))
-                                    .map(h => ({
-                                        id: h.id,
-                                        text: h.originalText,
-                                        comment: h.userNote || ''
-                                    }));
-
-                                return (
-                                    <div key={sentence.id} ref={isActive ? activeSentenceRef : null}>
-                                        <ScriptLine
-                                            sentence={sentence}
-                                            index={idx}
-                                            videoId={videoId}
-                                            isActive={isActive}
-                                            isLooping={isLooping}
-                                            expanded={expandedId === sentence.id}
-                                            highlights={sentenceHighlights}
-                                            onToggleExpand={() => setExpandedId(prev => prev === sentence.id ? null : sentence.id)}
-                                            onAddHighlight={handleAddHighlight}
-                                            onRemoveHighlight={handleRemoveHighlight}
-                                            onRestoreHighlight={handleRestoreHighlight}
-                                            onSeek={handleSeek}
-                                            onLoopToggle={handleLoopToggle}
-                                        />
-                                    </div>
-                                );
-                            })}
-                            {/* Extra scroll space */}
-                            <div className="h-20" />
-                        </div>
-                    </div>
-                </main>
-            )}
+                    )}
+                </div>
+            </main>
         </div>
     );
 }
