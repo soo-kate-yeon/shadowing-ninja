@@ -8,9 +8,8 @@ import YouTubePlayer from '@/components/YouTubePlayer';
 import { ShadowingHeader } from '@/components/shadowing/ShadowingHeader';
 import { ShadowingScriptList } from '@/components/shadowing/ShadowingScriptList';
 import { RecordingBar } from '@/components/shadowing/RecordingBar';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { Check } from 'lucide-react';
-
-type RecordingState = 'idle' | 'recording' | 'playback';
 
 export default function ShadowingPage() {
     const params = useParams();
@@ -34,11 +33,18 @@ export default function ShadowingPage() {
     // Loop State
     const [loopingSentenceId, setLoopingSentenceId] = useState<string | null>(null);
 
-    // Recording State
-    const [recordingState, setRecordingState] = useState<RecordingState>('idle');
-    const [isRecordingPlaying, setIsRecordingPlaying] = useState(false);
-    const [recordingDuration, setRecordingDuration] = useState(0);
-    const [currentRecordingSentenceId, setCurrentRecordingSentenceId] = useState<string | null>(null);
+    // Audio Recording Hook
+    const {
+        recordingState,
+        duration: recordingDuration,
+        isPlaying: isRecordingPlaying,
+        playbackProgress,
+        startRecording,
+        stopRecording,
+        playRecording,
+        pauseRecording,
+        resetRecording
+    } = useAudioRecorder();
 
     useEffect(() => {
         if (!videoId) return;
@@ -151,33 +157,13 @@ export default function ShadowingPage() {
         return () => clearInterval(checkLoop);
     }, [loopingSentenceId, player, sentences]);
 
-    const handleRecordSentence = (sentenceId: string) => {
-        setCurrentRecordingSentenceId(sentenceId);
-        setRecordingState('recording');
-        setRecordingDuration(0);
-        // TODO: Start actual audio recording
-    };
-
-    const handleStopRecording = () => {
-        setRecordingState('playback');
-        // TODO: Stop actual audio recording and get duration
-        setRecordingDuration(5); // Mock duration
-    };
-
-    const handlePlayRecording = () => {
-        setIsRecordingPlaying(true);
-        // TODO: Play recorded audio
-    };
-
-    const handlePauseRecording = () => {
-        setIsRecordingPlaying(false);
-        // TODO: Pause recorded audio
-    };
-
-    const handleRecordAgain = () => {
-        setRecordingState('recording');
-        setRecordingDuration(0);
-        // TODO: Start new recording
+    const handleRecordSentence = async (sentenceId: string) => {
+        // Reset previous recording if exists
+        if (recordingState !== 'idle') {
+            resetRecording();
+        }
+        // Start new recording
+        await startRecording();
     };
 
     if (loading) {
@@ -266,12 +252,13 @@ export default function ShadowingPage() {
             {/* Recording Bar */}
             <RecordingBar
                 state={recordingState}
-                onRecord={handleRecordAgain}
-                onStop={handleStopRecording}
-                onPlay={handlePlayRecording}
-                onPause={handlePauseRecording}
+                onRecord={startRecording}
+                onStop={stopRecording}
+                onPlay={playRecording}
+                onPause={pauseRecording}
                 isPlaying={isRecordingPlaying}
                 recordingDuration={recordingDuration}
+                playbackProgress={playbackProgress}
             />
         </div>
     );

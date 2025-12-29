@@ -6,9 +6,8 @@ import { useStore } from '@/lib/store';
 import { Sentence, LearningSession } from '@/types';
 import YouTubePlayer from '@/components/YouTubePlayer';
 import { ListeningHeader } from '@/components/listening/ListeningHeader';
-import { ScriptLine } from '@/components/listening/ScriptLine';
+import { ScriptLine, Highlight } from '@/components/listening/ScriptLine';
 import { ScriptToggle } from '@/components/listening/ScriptToggle';
-import { Highlight } from '@/components/listening/AnalysisPanel';
 
 export default function ListeningPage() {
     const params = useParams();

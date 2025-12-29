@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Play, Pause, Mic, Square } from "lucide-react";
 
 type RecordingState = 'idle' | 'recording' | 'playback';
@@ -13,6 +12,7 @@ interface RecordingBarProps {
     onPause: () => void;
     isPlaying?: boolean;
     recordingDuration?: number;
+    playbackProgress?: number;
 }
 
 export function RecordingBar({
@@ -22,21 +22,9 @@ export function RecordingBar({
     onPlay,
     onPause,
     isPlaying = false,
-    recordingDuration = 0
+    recordingDuration = 0,
+    playbackProgress = 0
 }: RecordingBarProps) {
-    const [displayTime, setDisplayTime] = useState(0);
-
-    useEffect(() => {
-        if (state === 'recording') {
-            const interval = setInterval(() => {
-                setDisplayTime(prev => prev + 0.1);
-            }, 100);
-            return () => clearInterval(interval);
-        } else if (state === 'idle') {
-            setDisplayTime(0);
-        }
-    }, [state]);
-
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
@@ -59,7 +47,7 @@ export function RecordingBar({
                                 녹음 중
                             </span>
                             <span className="text-body-medium text-neutral-600 ml-auto">
-                                {formatTime(displayTime)}
+                                {formatTime(recordingDuration)}
                             </span>
                         </div>
                         <button
@@ -73,13 +61,22 @@ export function RecordingBar({
                 ) : (
                     <>
                         {/* Playback State */}
-                        <div className="flex items-center gap-3 flex-1">
-                            <span className="text-body-large font-medium text-neutral-900">
-                                녹음 완료
-                            </span>
-                            <span className="text-body-medium text-neutral-600 ml-auto">
-                                {formatTime(recordingDuration)}
-                            </span>
+                        <div className="flex flex-col gap-2 flex-1">
+                            <div className="flex items-center justify-between">
+                                <span className="text-body-large font-medium text-neutral-900">
+                                    녹음 완료
+                                </span>
+                                <span className="text-body-medium text-neutral-600">
+                                    {formatTime(recordingDuration)}
+                                </span>
+                            </div>
+                            {/* Progress Bar */}
+                            <div className="w-full h-1 bg-neutral-200 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-primary-500 transition-all duration-100"
+                                    style={{ width: `${playbackProgress}%` }}
+                                />
+                            </div>
                         </div>
                         <button
                             onClick={isPlaying ? onPause : onPlay}
