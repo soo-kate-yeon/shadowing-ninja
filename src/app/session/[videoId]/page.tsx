@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { Sentence } from '@/types';
+import { Sentence, LearningSession } from '@/types';
 import YouTubePlayer from '@/components/YouTubePlayer';
 import { SessionHeader } from '@/components/session/SessionHeader';
 import { ScriptLine } from '@/components/session/ScriptLine';
@@ -12,7 +12,9 @@ import { Highlight } from '@/components/session/AnalysisPanel';
 export default function SessionPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const videoId = params.videoId as string;
+    const sessionId = searchParams.get('sessionId');
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -44,82 +46,86 @@ export default function SessionPage() {
         [storeHighlights, videoId]);
 
 
-    // Prevent infinite loop: only fetch transcript once per videoId
-    const hasLoadedTranscriptRef = useRef<string | null>(null);
+    // Prevent infinite loop: only fetch transcript once per videoId/sessionId
+    const hasLoadedRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (!videoId || hasLoadedTranscriptRef.current === videoId) return;
+        const loadKey = sessionId ? `${videoId}_${sessionId}` : videoId;
+        if (!videoId || hasLoadedRef.current === loadKey) return;
 
-        const fetchTranscript = async () => {
+        const fetchData = async () => {
             try {
                 setLoading(true);
-                // NEW: Fetch from curated videos API
-                const response = await fetch(`/api/curated-videos/${videoId}`);
-                console.log(`📡 [SessionPage] Fetch status: ${response.status} ${response.statusText}`);
+                let data;
+                let transcriptSentences: Sentence[] = [];
 
-                if (!response.ok) {
-                    throw new Error('Video not found in curated library');
+                if (sessionId) {
+                    // Fetch specific learning session
+                    const response = await fetch(`/api/learning-sessions?sessionId=${sessionId}`);
+                    if (!response.ok) throw new Error('Session not found');
+                    const result = await response.json();
+                    const session = result.sessions?.[0] as LearningSession;
+
+                    if (!session) throw new Error('Session not found');
+
+                    data = {
+                        title: session.title,
+                        snippet_start_time: session.start_time,
+                        snippet_end_time: session.end_time,
+                        snippet_duration: session.duration,
+                        thumbnail_url: session.thumbnail_url
+                    };
+                    transcriptSentences = session.sentences || [];
+                } else {
+                    // Fetch full curated video
+                    const response = await fetch(`/api/curated-videos/${videoId}`);
+                    if (!response.ok) throw new Error('Video not found in curated library');
+                    data = await response.json();
+                    transcriptSentences = data.transcript || [];
                 }
 
-                const data = await response.json();
-                console.log('📦 [SessionPage] Curated video loaded:', {
+                console.log(`📦 [SessionPage] Data loaded:`, {
                     title: data.title,
-                    sentenceCount: data.transcript?.length,
-                    snippet_duration: data.snippet_duration
+                    sentenceCount: transcriptSentences.length,
+                    sessionId
                 });
 
-                // Validate response data
-                if (!data || !data.transcript || !Array.isArray(data.transcript)) {
-                    throw new Error('Invalid video data structure');
+                if (transcriptSentences.length === 0) {
+                    throw new Error('No transcript available for this content');
                 }
 
-                // Handle empty array
-                if (data.transcript.length === 0) {
-                    throw new Error('This video has no transcript available');
-                }
-
-                setSentences(data.transcript);
+                setSentences(transcriptSentences);
                 setVideoData(data);
 
-                // Check if session exists and load last position
+                // Check store for user progress
                 const existingSession = sessions[videoId];
                 if (existingSession) {
-                    // Resume from last position
                     setCurrentStep(existingSession.currentStep);
                 } else {
-                    // Create new session starting at step 1
                     addSession({
                         id: crypto.randomUUID(),
                         videoId,
                         progress: 0,
                         lastAccessedAt: Date.now(),
-                        totalSentences: data.transcript.length,
-                        timeLeft: data.duration || '00:00',
+                        totalSentences: transcriptSentences.length,
+                        timeLeft: '00:00', // Could calculate from sentences
                         currentStep: 1,
                         currentSentence: undefined
                     });
                 }
 
-                // Mark as loaded
-                hasLoadedTranscriptRef.current = videoId;
+                hasLoadedRef.current = loadKey;
 
             } catch (err: any) {
-                // Ignore "no transcript" errors in console, just set UI state
-                if (err.message === 'This video has no transcript available') {
-                    setError('This video has no transcript available');
-                    setLoading(false);
-                    return;
-                }
-
                 console.error(err);
-                setError('Failed to load session');
+                setError(err.message || 'Failed to load session');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchTranscript();
-    }, [videoId]); // Removed sessions, addSession, video from deps to prevent infinite loop
+        fetchData();
+    }, [videoId, sessionId]);
 
 
     const handlePlayerReady = (playerInstance: YT.Player) => {
@@ -275,7 +281,7 @@ export default function SessionPage() {
             setCurrentStep(2);
             updateSessionPosition(videoId, 2);
         } else {
-            router.push(`/shadowing/${videoId}`);
+            router.push(`/shadowing/${videoId}${sessionId ? `?sessionId=${sessionId}` : ''}`);
         }
     };
 

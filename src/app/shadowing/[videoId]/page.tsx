@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { groupSentencesByMode } from '@/lib/transcript-parser';
-import { Sentence } from '@/types';
+import { Sentence, LearningSession } from '@/types';
 import YouTubePlayer from '@/components/YouTubePlayer';
 import { ShadowingHeader } from '@/components/shadowing/ShadowingHeader';
 import { ShadowingScriptList } from '@/components/shadowing/ShadowingScriptList';
@@ -12,7 +12,9 @@ import { Check } from 'lucide-react';
 export default function ShadowingPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const videoId = params.videoId as string;
+    const sessionId = searchParams.get('sessionId');
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -29,18 +31,37 @@ export default function ShadowingPage() {
     useEffect(() => {
         if (!videoId) return;
 
-        const fetchCuratedData = async () => {
+        const fetchData = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`/api/curated-videos/${videoId}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch curated video');
+                let data;
+                let transcriptSentences: Sentence[] = [];
+
+                if (sessionId) {
+                    const response = await fetch(`/api/learning-sessions?sessionId=${sessionId}`);
+                    if (!response.ok) throw new Error('Session not found');
+                    const result = await response.json();
+                    const session = result.sessions?.[0] as LearningSession;
+
+                    if (!session) throw new Error('Session not found');
+
+                    data = {
+                        title: session.title,
+                        snippet_start_time: session.start_time,
+                        snippet_end_time: session.end_time,
+                        snippet_duration: session.duration
+                    };
+                    transcriptSentences = session.sentences || [];
+                } else {
+                    const response = await fetch(`/api/curated-videos/${videoId}`);
+                    if (!response.ok) throw new Error('Failed to fetch curated video');
+                    data = await response.json();
+                    transcriptSentences = data.transcript || [];
                 }
-                const data = await response.json();
+
                 setVideoData(data);
-                setRawSentences(data.transcript);
-                // Apply initial grouping
-                setSentences(groupSentencesByMode(data.transcript, mode));
+                setRawSentences(transcriptSentences);
+                setSentences(groupSentencesByMode(transcriptSentences, mode));
             } catch (err) {
                 console.error(err);
                 setError('Failed to load session');
@@ -49,8 +70,8 @@ export default function ShadowingPage() {
             }
         };
 
-        fetchCuratedData();
-    }, [videoId]);
+        fetchData();
+    }, [videoId, sessionId]);
 
     // Re-group when mode changes
     useEffect(() => {
@@ -116,7 +137,7 @@ export default function ShadowingPage() {
             <ShadowingHeader
                 title={videoData?.title || 'Loading...'}
                 onBack={() => router.push('/home')}
-                onPrevStep={() => router.push(`/session/${videoId}`)}
+                onPrevStep={() => router.push(`/session/${videoId}${sessionId ? `?sessionId=${sessionId}` : ''}`)}
                 onNextStep={() => { }} // TODO: Next step
             />
 

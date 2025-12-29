@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
 
         const difficulty = searchParams.get('difficulty');
+        const sessionId = searchParams.get('sessionId');
 
         // Query learning_sessions
         let query = supabase
@@ -20,11 +21,16 @@ export async function GET(request: NextRequest) {
                     transcript,
                     thumbnail_url
                 )
-            `)
-            .order('created_at', { ascending: false });
+            `);
 
-        if (difficulty && difficulty !== 'all') {
-            query = query.eq('difficulty', difficulty);
+        if (sessionId) {
+            query = query.eq('id', sessionId);
+        } else {
+            query = query.order('created_at', { ascending: false });
+
+            if (difficulty && difficulty !== 'all') {
+                query = query.eq('difficulty', difficulty);
+            }
         }
 
         const { data: sessions, error } = await query;
