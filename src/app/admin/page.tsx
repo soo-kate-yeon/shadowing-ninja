@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { extractVideoId, parseTranscriptToSentences } from '@/lib/transcript-parser';
 import type { TranscriptItem } from '@/lib/transcript-parser';
 import { Sentence } from '@/types';
+import { useSentenceEditor } from './hooks/useSentenceEditor';
+import { useTranscriptFetch } from './hooks/useTranscriptFetch';
 import YouTubePlayer from '@/components/YouTubePlayer';
 import { createClient } from '@/utils/supabase/client';
 
@@ -17,8 +19,10 @@ function AdminPageContent() {
 
     const supabase = createClient();
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
+    // Use custom hooks
+    const transcriptFetch = useTranscriptFetch();
 
     // Form state
     const [youtubeUrl, setYoutubeUrl] = useState('');
@@ -29,8 +33,14 @@ function AdminPageContent() {
     const [rawScript, setRawScript] = useState('');
     const scriptRef = useRef<HTMLTextAreaElement>(null);
 
-    // Sync Editor State
-    const [sentences, setSentences] = useState<Sentence[]>([]);
+    // Sync Editor State (using custom hook)
+    const {
+        sentences,
+        setSentences,
+        updateSentenceTime,
+        updateSentenceText,
+        deleteSentence
+    } = useSentenceEditor([]);
     const [player, setPlayer] = useState<YT.Player | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
 
@@ -74,7 +84,7 @@ function AdminPageContent() {
                     setLastSyncTime(data.snippet_end_time || 0);
                     console.log('Loaded video for editing:', data.title);
                 } else {
-                    setError('Video not found for editing');
+                    console.error('Video not found for editing');
                 }
                 setLoading(false);
                 return;
@@ -158,118 +168,43 @@ function AdminPageContent() {
 
     // --- Translation Logic ---
     const handleAutoTranslate = async () => {
-        if (sentences.length === 0) return;
-        if (!confirm('Auto translate all sentences? This will overwrite existing translations.')) return;
-
-        setLoading(true);
         try {
-            const texts = sentences.map(s => s.text);
-            const res = await fetch('/api/admin/translate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sentences: texts })
-            });
-
-            if (!res.ok) throw new Error('Translation failed');
-
-            const { translations } = await res.json();
-
-            setSentences(prev => prev.map((s, idx) => ({
-                ...s,
-                translation: translations[idx] || ''
-            })));
-
+            const translated = await transcriptFetch.autoTranslate(sentences);
+            setSentences(translated);
             setSuccess(true);
             setTimeout(() => setSuccess(false), 2000);
-
         } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
+            if (err.message !== 'Translation cancelled') {
+                // Ignore cancellation, show other errors
+                console.error(err.message);
+            }
         }
     };
-
 
     // --- Fetch Transcript Logic ---
     const handleFetchTranscript = async () => {
         const videoId = getVideoId();
-        if (!videoId) {
-            setError('Please enter a valid YouTube URL first');
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
         try {
-            const res = await fetch(`/api/admin/transcript?videoId=${videoId}`);
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || 'Failed to fetch transcript');
-            }
-
-            const { transcript } = await res.json();
-
-            // Convert transcript to raw text format
-            const rawText = transcript.map((item: any) => item.text).join(' ');
-
+            const rawText = await transcriptFetch.fetchTranscript(videoId || '');
             setRawScript(rawText);
-
             setSuccess(true);
             setTimeout(() => setSuccess(false), 2000);
-
         } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
+            console.error(err.message);
         }
     };
 
-
     // --- Parse Script Logic ---
     const handleParseScript = async () => {
-        if (!rawScript.trim()) {
-            setError('No script to parse. Please fetch transcript or paste script first.');
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
+        const videoId = getVideoId();
         try {
-            // Fetch transcript data from API if available (for timestamps)
-            const videoId = getVideoId();
-            let transcriptItems: TranscriptItem[] = [];
-
-            if (videoId) {
-                try {
-                    const res = await fetch(`/api/admin/transcript?videoId=${videoId}`);
-                    if (res.ok) {
-                        const { transcript } = await res.json();
-                        transcriptItems = transcript;
-                    }
-                } catch (err) {
-                    // If API fails, continue with manual parsing
-                    console.warn('Could not fetch transcript data, using manual parsing');
-                }
-            }
-
-            // Parse using transcript-parser logic
-            const parsedSentences = transcriptItems.length > 0
-                ? parseTranscriptToSentences(transcriptItems)
-                : parseTranscriptToSentences([{ text: rawScript, start: 0, duration: 0, offset: 0, lang: 'en' }]);
-
+            const parsedSentences = await transcriptFetch.parseScript(rawScript, videoId);
             setSentences(parsedSentences);
             setLastSyncTime(parsedSentences[parsedSentences.length - 1]?.endTime || 0);
-
             setSuccess(true);
             setTimeout(() => setSuccess(false), 2000);
-
         } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
+            console.error(err.message);
         }
     };
 
@@ -341,41 +276,21 @@ function AdminPageContent() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [player, rawScript, lastSyncTime]);
 
-    const updateSentenceTime = (id: string, field: 'startTime' | 'endTime', value: number) => {
-        setSentences(prev => prev.map(s =>
-            s.id === id ? { ...s, [field]: value } : s
-        ));
-    };
-
-    const updateSentenceText = (id: string, field: 'text' | 'translation', value: string) => {
-        setSentences(prev => prev.map(s =>
-            s.id === id ? { ...s, [field]: value } : s
-        ));
-    };
-
-    const deleteSentence = (index: number) => {
-        setSentences(prev => {
-            const next = [...prev];
-            next.splice(index, 1);
-            return next;
-        });
-    };
+    // Sentence CRUD operations moved to useSentenceEditor hook
 
     const handleSave = async () => {
         const videoId = getVideoId();
         if (!videoId) {
-            setError('Invalid YouTube URL');
+            console.error('Invalid YouTube URL');
             return;
         }
 
         if (sentences.length === 0) {
-            setError('No parsed sentences to save');
+            console.error('No parsed sentences to save');
             return;
         }
 
         setLoading(true);
-        setError(null);
-
         try {
             const duration = player ? player.getDuration() : sentences[sentences.length - 1].endTime;
 
@@ -420,7 +335,7 @@ function AdminPageContent() {
             }, 2000);
 
         } catch (err: any) {
-            setError(err.message);
+            console.error(err.message);
         } finally {
             setLoading(false);
         }
@@ -475,9 +390,9 @@ function AdminPageContent() {
                     </div>
                 </div>
 
-                {error && (
+                {transcriptFetch.error && (
                     <div className="bg-error/10 border border-error rounded-lg p-3 mb-4 shrink-0">
-                        <p className="text-error text-sm">{error}</p>
+                        <p className="text-error text-sm">{transcriptFetch.error}</p>
                     </div>
                 )}
 
