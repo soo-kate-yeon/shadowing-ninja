@@ -12,6 +12,7 @@ interface SentenceListEditorProps {
     onDelete: (index: number) => void;
     onSplit: (index: number, cursorPosition: number) => void;
     onMergeWithPrevious: (index: number) => void;
+    onPlayFrom: (time: number) => void;
     onStartSessionCreation: () => void;
 }
 
@@ -26,6 +27,7 @@ export function SentenceListEditor({
     onDelete,
     onSplit,
     onMergeWithPrevious,
+    onPlayFrom,
     onStartSessionCreation
 }: SentenceListEditorProps) {
     return (
@@ -67,6 +69,7 @@ export function SentenceListEditor({
                         onDelete={onDelete}
                         onSplit={onSplit}
                         onMergeWithPrevious={onMergeWithPrevious}
+                        onPlayFrom={onPlayFrom}
                     />
                 ))}
                 {sentences.length === 0 && (

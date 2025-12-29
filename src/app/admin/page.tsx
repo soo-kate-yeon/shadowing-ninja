@@ -256,7 +256,11 @@ function AdminPageContent() {
         }
     };
 
-
+    const handlePlayFrom = (time: number) => {
+        if (!player) return;
+        player.seekTo(time, true);
+        player.playVideo();
+    };
 
     // --- Sync Logic ---
     const handleSyncTrigger = () => {
@@ -467,6 +471,7 @@ function AdminPageContent() {
                             onDelete={deleteSentence}
                             onSplit={splitSentence}
                             onMergeWithPrevious={mergeWithPrevious}
+                            onPlayFrom={handlePlayFrom}
                             onStartSessionCreation={handleStartSessionCreation}
                         />
 
