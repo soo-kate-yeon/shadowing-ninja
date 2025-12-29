@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { extractVideoId } from '@/lib/transcript-parser';
+import { extractVideoId, parseTranscriptToSentences } from '@/lib/transcript-parser';
+import type { TranscriptItem } from '@/lib/transcript-parser';
 import { Sentence } from '@/types';
 import YouTubePlayer from '@/components/YouTubePlayer';
 import { createClient } from '@/utils/supabase/client';
@@ -210,17 +211,57 @@ function AdminPageContent() {
 
             const { transcript } = await res.json();
 
-            // Convert transcript to Sentence format
-            const newSentences: Sentence[] = transcript.map((item: any) => ({
-                id: crypto.randomUUID(),
-                text: item.text,
-                startTime: item.offset / 1000, // Convert ms to seconds
-                endTime: (item.offset + item.duration) / 1000,
-                highlights: []
-            }));
+            // Convert transcript to raw text format
+            const rawText = transcript.map((item: any) => item.text).join(' ');
 
-            setSentences(newSentences);
-            setLastSyncTime(newSentences[newSentences.length - 1]?.endTime || 0);
+            setRawScript(rawText);
+
+            setSuccess(true);
+            setTimeout(() => setSuccess(false), 2000);
+
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    // --- Parse Script Logic ---
+    const handleParseScript = async () => {
+        if (!rawScript.trim()) {
+            setError('No script to parse. Please fetch transcript or paste script first.');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Fetch transcript data from API if available (for timestamps)
+            const videoId = getVideoId();
+            let transcriptItems: TranscriptItem[] = [];
+
+            if (videoId) {
+                try {
+                    const res = await fetch(`/api/admin/transcript?videoId=${videoId}`);
+                    if (res.ok) {
+                        const { transcript } = await res.json();
+                        transcriptItems = transcript;
+                    }
+                } catch (err) {
+                    // If API fails, continue with manual parsing
+                    console.warn('Could not fetch transcript data, using manual parsing');
+                }
+            }
+
+            // Parse using transcript-parser logic
+            const parsedSentences = transcriptItems.length > 0
+                ? parseTranscriptToSentences(transcriptItems)
+                : parseTranscriptToSentences([{ text: rawScript, start: 0, duration: 0, offset: 0, lang: 'en' }]);
+
+            setSentences(parsedSentences);
+            setLastSyncTime(parsedSentences[parsedSentences.length - 1]?.endTime || 0);
 
             setSuccess(true);
             setTimeout(() => setSuccess(false), 2000);
@@ -522,6 +563,14 @@ function AdminPageContent() {
                         <div className="flex-1 bg-surface rounded-2xl border border-secondary-200 shadow-sm overflow-hidden flex flex-col relative">
                             <div className="absolute top-0 left-0 bg-secondary-200 text-secondary-800 text-xs px-3 py-1 font-bold rounded-br-lg z-10 flex gap-2 items-center">
                                 Step 2: Parsed Sentences ({sentences.length})
+                                <button
+                                    onClick={handleParseScript}
+                                    disabled={loading || !rawScript.trim()}
+                                    className="bg-secondary-700 hover:bg-secondary-800 disabled:opacity-50 text-white px-2 py-0.5 rounded text-[10px] uppercase tracking-wide transition-colors"
+                                    title="Parse raw script into sentences"
+                                >
+                                    📝 Parse Script
+                                </button>
                                 <button
                                     onClick={handleAutoTranslate}
                                     disabled={loading || sentences.length === 0}
