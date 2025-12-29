@@ -275,12 +275,9 @@ export default function ListeningPage() {
                                                 videoId={videoId}
                                                 isActive={isActive}
                                                 isLooping={isLooping}
-                                                expanded={false}
                                                 highlights={sentenceHighlights}
-                                                onToggleExpand={() => { }}
                                                 onAddHighlight={handleAddHighlight}
                                                 onRemoveHighlight={handleRemoveHighlight}
-                                                onRestoreHighlight={handleRestoreHighlight}
                                                 onSeek={handleSeek}
                                                 onLoopToggle={handleLoopToggle}
                                             />
