@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Pause, Mic, Square } from "lucide-react";
+import { Play, Pause, Square, Globe, Bookmark, X, Check, Mic } from "lucide-react";
 
 type RecordingState = 'idle' | 'recording' | 'playback';
 
@@ -10,6 +10,8 @@ interface RecordingBarProps {
     onStop: () => void;
     onPlay: () => void;
     onPause: () => void;
+    onCancel?: () => void;
+    onDone?: () => void;
     isPlaying?: boolean;
     recordingDuration?: number;
     playbackProgress?: number;
@@ -21,6 +23,8 @@ export function RecordingBar({
     onStop,
     onPlay,
     onPause,
+    onCancel,
+    onDone,
     isPlaying = false,
     recordingDuration = 0,
     playbackProgress = 0
@@ -36,68 +40,111 @@ export function RecordingBar({
     }
 
     return (
-        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-            <div className="bg-surface border border-outline rounded-2xl shadow-lg px-6 py-4 flex items-center gap-4 min-w-[400px]">
-                {state === 'recording' ? (
-                    <>
-                        {/* Recording State */}
-                        <div className="flex items-center gap-3 flex-1">
-                            <div className="w-3 h-3 bg-error rounded-full animate-pulse"></div>
-                            <span className="text-body-large font-medium text-neutral-900">
-                                녹음 중
-                            </span>
-                            <span className="text-body-medium text-neutral-600 ml-auto">
-                                {formatTime(recordingDuration)}
-                            </span>
-                        </div>
+        <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 z-50 flex items-center justify-center w-full px-4">
+            <div className="bg-black/80 backdrop-blur-md border border-white/10 rounded-full pl-2 pr-6 py-2 flex items-center gap-6 shadow-2xl min-w-[600px] max-w-3xl">
+
+                {/* Left Control Button */}
+                <div className="shrink-0">
+                    {state === 'recording' ? (
                         <button
                             onClick={onStop}
-                            className="bg-primary-500 hover:bg-primary-600 text-white p-3 rounded-xl transition-colors"
+                            className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors group"
                             aria-label="Stop recording"
                         >
-                            <Square className="w-5 h-5" fill="currentColor" />
+                            <Square className="w-5 h-5 text-white fill-white group-hover:scale-90 transition-transform" />
                         </button>
-                    </>
-                ) : (
-                    <>
-                        {/* Playback State */}
-                        <div className="flex flex-col gap-2 flex-1">
-                            <div className="flex items-center justify-between">
-                                <span className="text-body-large font-medium text-neutral-900">
-                                    녹음 완료
+                    ) : (
+                        <button
+                            onClick={isPlaying ? onPause : onPlay}
+                            className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors group"
+                            aria-label={isPlaying ? "Pause" : "Play"}
+                        >
+                            {isPlaying ? (
+                                <Pause className="w-5 h-5 text-white fill-white" />
+                            ) : (
+                                <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                            )}
+                        </button>
+                    )}
+                </div>
+
+                {/* Center Content */}
+                <div className="flex-1 flex items-center gap-6 min-w-0">
+                    {state === 'recording' ? (
+                        /* Recording Status */
+                        <div className="flex items-center gap-3 flex-1">
+                            {/* Visualizer Mock */}
+                            <div className="flex gap-1 items-end h-6 mx-2">
+                                {[1, 2, 3, 2, 4, 1, 2].map((h, i) => (
+                                    <div
+                                        key={i}
+                                        className="w-1 bg-primary-500 rounded-full animate-pulse"
+                                        style={{
+                                            height: `${h * 4}px`,
+                                            animationDelay: `${i * 0.1}s`
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                            <span className="text-white font-medium whitespace-nowrap">
+                                Recording... {formatTime(recordingDuration)}
+                            </span>
+
+                            {/* Divider & Extra Info (Mock) */}
+                            <div className="h-4 w-px bg-white/10 mx-2" />
+                            <div className="flex items-center gap-4 text-white/60 text-sm hidden sm:flex">
+                                <span className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer">
+                                    <Globe className="w-4 h-4" />
+                                    English
                                 </span>
-                                <span className="text-body-medium text-neutral-600">
-                                    {formatTime(recordingDuration)}
+                                <span className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer">
+                                    <Bookmark className="w-4 h-4" />
+                                    Bookmark
                                 </span>
                             </div>
-                            {/* Progress Bar */}
-                            <div className="w-full h-1 bg-neutral-200 rounded-full overflow-hidden">
+                        </div>
+                    ) : (
+                        /* Playback Progress */
+                        <div className="flex flex-col justify-center flex-1 gap-1.5">
+                            <div className="flex items-center justify-between text-xs font-medium px-1">
+                                <span className="text-white">Reviewing</span>
+                                <span className="text-white/60">{formatTime(recordingDuration)}</span>
+                            </div>
+                            <div className="relative w-full h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer group">
                                 <div
-                                    className="h-full bg-primary-500 transition-all duration-100"
+                                    className="absolute inset-y-0 left-0 bg-primary-500 rounded-full transition-all duration-100 ease-linear group-hover:bg-primary-400"
                                     style={{ width: `${playbackProgress}%` }}
                                 />
                             </div>
                         </div>
-                        <button
-                            onClick={isPlaying ? onPause : onPlay}
-                            className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 p-3 rounded-xl transition-colors"
-                            aria-label={isPlaying ? "Pause" : "Play"}
-                        >
-                            {isPlaying ? (
-                                <Pause className="w-5 h-5" />
-                            ) : (
-                                <Play className="w-5 h-5" fill="currentColor" />
-                            )}
-                        </button>
+                    )}
+                </div>
+
+                {/* Right Actions */}
+                <div className="flex items-center gap-4 pl-4 border-l border-white/10 shrink-0">
+                    {state === 'playback' && (
                         <button
                             onClick={onRecord}
-                            className="bg-primary-500 hover:bg-primary-600 text-white p-3 rounded-xl transition-colors"
-                            aria-label="Record again"
+                            className="text-white/70 hover:text-white text-sm font-medium transition-colors flex items-center gap-1"
                         >
-                            <Mic className="w-5 h-5" />
+                            <Mic className="w-4 h-4" />
+                            Re-record
                         </button>
-                    </>
-                )}
+                    )}
+
+                    <button
+                        onClick={onCancel}
+                        className="text-white/70 hover:text-error text-sm font-medium transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onDone}
+                        className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors shadow-lg shadow-primary-500/20"
+                    >
+                        Done
+                    </button>
+                </div>
             </div>
         </div>
     );
