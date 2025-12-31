@@ -35,6 +35,8 @@ export function RecordingBar({
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const currentTime = (playbackProgress / 100) * recordingDuration;
+
     if (state === 'idle') {
         return null; // Hidden when idle
     }
@@ -82,7 +84,7 @@ export function RecordingBar({
                         /* Playback Progress */
                         <div className="flex flex-col justify-center flex-1 gap-1.5">
                             <div className="flex items-center justify-between text-xs font-medium px-1">
-                                <span className="text-white/80">녹음 확인</span>
+                                <span className="text-white/80">{formatTime(currentTime)}</span>
                                 <span className="text-white/80">{formatTime(recordingDuration)}</span>
                             </div>
                             <div className="relative w-full h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer group">

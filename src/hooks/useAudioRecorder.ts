@@ -85,9 +85,10 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     const stopRecording = useCallback(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
             mediaRecorderRef.current.stop();
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
+        }
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
         }
     }, []);
 
@@ -103,6 +104,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
                 setPlaybackProgress(0);
                 if (animationFrameRef.current) {
                     cancelAnimationFrame(animationFrameRef.current);
+                    animationFrameRef.current = null;
                 }
             };
 
@@ -111,8 +113,13 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             };
         }
 
-        audioElementRef.current.play();
-        setIsPlaying(true);
+        // Just in case, try to play
+        const playPromise = audioElementRef.current.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                setIsPlaying(true);
+            }).catch(e => console.error("Playback failed", e));
+        }
 
         // Update progress
         const updateProgress = () => {
@@ -131,15 +138,29 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             setIsPlaying(false);
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
             }
         }
     }, []);
 
     const resetRecording = useCallback(() => {
+        // Stop audio playback
         if (audioElementRef.current) {
             audioElementRef.current.pause();
             audioElementRef.current.currentTime = 0;
         }
+
+        // Stop recording if active
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+        }
+
+        // Cancel any running loops
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+        }
+
         if (audioUrl) {
             URL.revokeObjectURL(audioUrl);
         }
