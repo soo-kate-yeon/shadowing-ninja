@@ -256,6 +256,8 @@ export default function ShadowingPage() {
                 onStop={stopRecording}
                 onPlay={playRecording}
                 onPause={pauseRecording}
+                onCancel={resetRecording}
+                onDone={resetRecording}
                 isPlaying={isRecordingPlaying}
                 recordingDuration={recordingDuration}
                 playbackProgress={playbackProgress}
