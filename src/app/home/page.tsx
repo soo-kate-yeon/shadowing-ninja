@@ -7,10 +7,13 @@ import SessionCard from '@/components/SessionCard';
 import UserMenu from '@/components/auth/UserMenu';
 import { useStore } from '@/lib/store';
 import TopNav from '@/components/TopNav';
+import VideoCard from '@/components/VideoCard';
 import { CuratedVideo } from '@/types';
+import { usePrefetch } from '@/hooks/usePrefetch';
 
 export default function HomePage() {
     const router = useRouter();
+    const { prefetchVideo, prefetchSession } = usePrefetch();
     const sessions = useStore((state) => state.sessions);
     const removeSession = useStore((state) => state.removeSession);
 
@@ -65,11 +68,11 @@ export default function HomePage() {
         <div className="min-h-screen bg-secondary-200 flex flex-col">
             <TopNav />
 
-            <main className="flex-1 max-w-[1920px] w-full mx-auto p-8 flex flex-col gap-6 h-[calc(100vh-80px)] overflow-hidden">
-                <div className="flex flex-row gap-6 items-start h-full">
+            <main className="flex-1 max-w-[1920px] w-full mx-auto p-8 flex flex-col gap-6 h-[calc(100vh-64px)] overflow-hidden">
+                <div className="flex flex-row gap-8 items-start h-full">
 
                     {/* Left Column: Learning Sessions */}
-                    <section className="flex flex-col gap-4 w-[33%] h-full">
+                    <section className="flex flex-col gap-4 w-1/2 h-full min-h-0">
                         <div className="flex flex-col gap-4 shrink-0">
                             <h2 className="text-2xl font-semibold text-black">학습할 영상</h2>
 
@@ -117,41 +120,21 @@ export default function HomePage() {
                                     </Link>
                                 </div>
                             ) : (
-                                <div className="flex flex-col gap-4 pb-4">
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-8 pb-8">
                                     {learningSessions.map((session) => (
-                                        <Link href={`/listening/${session.source_video_id}?sessionId=${session.id}`} key={session.id} className="block">
-                                            <div className="bg-surface rounded-2xl overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border border-transparent hover:border-primary-200">
-                                                <div className="aspect-video relative bg-secondary-300">
-                                                    <img
-                                                        src={session.thumbnail_url}
-                                                        alt={session.title}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                    <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded font-mono">
-                                                        {Math.floor(session.duration / 60)}:{String(Math.floor(session.duration % 60)).padStart(2, '0')}
-                                                    </div>
-                                                    <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 text-white text-xs rounded-full backdrop-blur-sm">
-                                                        Session
-                                                    </div>
-                                                </div>
-                                                <div className="p-4">
-                                                    <h3 className="font-semibold text-secondary-900 line-clamp-1 mb-1">
-                                                        {session.title}
-                                                    </h3>
-                                                    <p className="text-sm text-secondary-500 line-clamp-2 mb-3 h-10">
-                                                        {session.description || 'No description available.'}
-                                                    </p>
-                                                    <div className="flex items-center gap-2 text-sm text-secondary-600">
-                                                        {session.difficulty && (
-                                                            <span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-xs font-medium capitalize">
-                                                                {session.difficulty}
-                                                            </span>
-                                                        )}
-                                                        <span>{session.sentence_ids?.length || 0} sentences</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </Link>
+                                        <VideoCard
+                                            key={session.id}
+                                            title={session.title}
+                                            thumbnailUrl={session.thumbnail_url}
+                                            duration={`${Math.floor(session.duration / 60)}:${String(Math.floor(session.duration % 60)).padStart(2, '0')}`}
+                                            description={session.description || ''}
+                                            sentenceCount={session.sentence_ids?.length || 0}
+                                            onClick={() => router.push(`/listening/${session.source_video_id}?sessionId=${session.id}`)}
+                                            onMouseEnter={() => {
+                                                prefetchVideo(session.source_video_id);
+                                                prefetchSession(session.id);
+                                            }}
+                                        />
                                     ))}
                                 </div>
                             )}
@@ -159,7 +142,7 @@ export default function HomePage() {
                     </section>
 
                     {/* Right Column: Recent Sessions */}
-                    <section className="bg-[#f3f3f3] rounded-2xl p-4 h-full w-[67%] flex flex-col">
+                    <section className="bg-secondary-50 rounded-3xl p-6 h-full w-1/2 flex flex-col border border-secondary-300/50">
                         <div className="flex items-center justify-between relative mb-4 shrink-0">
                             <h2 className="text-xl font-semibold text-black">학습 중인 영상</h2>
                             <div className="flex items-center gap-2">
@@ -249,6 +232,13 @@ export default function HomePage() {
                                                         setSelectedVideoIds(newSelected);
                                                     }}
                                                     onClick={() => { }}
+                                                    onMouseEnter={() => {
+                                                        prefetchVideo(session.videoId);
+                                                        // Fallback for session if learningSession is not yet loaded or doesn't match
+                                                        if (learningSession) {
+                                                            prefetchSession(learningSession.id);
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                         );
