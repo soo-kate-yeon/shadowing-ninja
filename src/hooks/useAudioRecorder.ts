@@ -34,8 +34,13 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             // Request microphone permission
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
+            // Determine supported mime type
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : 'audio/mp4'; // Fallback for Safari if needed
+
             // Create MediaRecorder
-            const mediaRecorder = new MediaRecorder(stream);
+            const mediaRecorder = new MediaRecorder(stream, { mimeType });
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
 
@@ -46,7 +51,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             };
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
                 const url = URL.createObjectURL(audioBlob);
                 setAudioUrl(url);
                 setRecordingState('playback');
