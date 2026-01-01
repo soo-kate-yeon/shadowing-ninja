@@ -31,7 +31,7 @@ export interface StudySession {
   createdAt: Date;
   updatedAt: Date;
   sentences: Sentence[];
-  currentPhase: 'blind' | 'script' | 'shadowing';
+  currentPhase: "blind" | "script" | "shadowing";
   isCompleted: boolean;
 }
 
@@ -59,12 +59,12 @@ export interface CuratedVideo {
 
   // Snippet-specific fields
   snippet_start_time: number; // seconds
-  snippet_end_time: number;    // seconds
-  snippet_duration: number;    // auto-calculated
-  transcript: Sentence[];      // Only snippet sentences
+  snippet_end_time: number; // seconds
+  snippet_duration: number; // auto-calculated
+  transcript: Sentence[]; // Only snippet sentences
 
   // Metadata
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  difficulty?: "beginner" | "intermediate" | "advanced";
   tags?: string[];
 
   // Legal protection
@@ -85,7 +85,7 @@ export interface LearningSession {
   start_time: number; // seconds
   end_time: number; // seconds
   thumbnail_url?: string;
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  difficulty?: "beginner" | "intermediate" | "advanced";
   order_index: number;
   created_at: string;
   created_by?: string;
@@ -93,4 +93,18 @@ export interface LearningSession {
   // Populated fields (optional, for UI convenience)
   sentences?: Sentence[];
   source_video?: CuratedVideo;
+}
+
+export interface SceneRecommendation {
+  startIndex: number;
+  endIndex: number;
+  title: string;
+  reason: string;
+  learningPoints: string[];
+  estimatedDuration: number; // seconds
+}
+
+export interface SceneAnalysisResponse {
+  scenes: SceneRecommendation[];
+  totalAnalyzed: number;
 }
