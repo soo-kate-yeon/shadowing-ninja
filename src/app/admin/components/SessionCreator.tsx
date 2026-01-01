@@ -49,6 +49,16 @@ export function SessionCreator({
     onSessionsChange(createdSessions);
   }, [createdSessions, onSessionsChange]);
 
+  // Sync with initialSessions when they change (e.g., when loading existing video)
+  useEffect(() => {
+    if (initialSessions.length > 0 && createdSessions.length === 0) {
+      setCreatedSessions(initialSessions);
+      console.log(
+        `📥 Loaded ${initialSessions.length} sessions into SessionCreator`,
+      );
+    }
+  }, [initialSessions]);
+
   // Auto-sync sessions when sentences are edited in Step2
   useEffect(() => {
     if (createdSessions.length === 0) return;
@@ -239,11 +249,16 @@ export function SessionCreator({
       const response = await fetch("/api/admin/autofill-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ sentences: sortedSelectedSentences }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to autofill session details");
+        const errorData = await response.json();
+        console.error("Autofill error details:", errorData);
+        throw new Error(
+          errorData.error || "Failed to autofill session details",
+        );
       }
 
       const data = await response.json();

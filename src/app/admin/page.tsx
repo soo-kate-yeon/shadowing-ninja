@@ -119,8 +119,26 @@ function AdminPageContent() {
             .order("order_index", { ascending: true });
 
           if (sessionData) {
-            // Map DB sessions to LearningSession type (if needed, but structure matches)
-            setCreatedSessions(sessionData as LearningSession[]);
+            // Reconstruct sentences for each session using sentence_ids
+            const sessionsWithSentences = sessionData.map((session) => {
+              const sessionSentences = session.sentence_ids
+                .map((id: string) =>
+                  data.transcript?.find((s: Sentence) => s.id === id),
+                )
+                .filter(
+                  (s: Sentence | undefined): s is Sentence => s !== undefined,
+                );
+
+              return {
+                ...session,
+                sentences: sessionSentences,
+              } as LearningSession;
+            });
+
+            setCreatedSessions(sessionsWithSentences);
+            console.log(
+              `Loaded ${sessionsWithSentences.length} existing sessions`,
+            );
           }
         } else {
           console.error("Video not found for editing");
