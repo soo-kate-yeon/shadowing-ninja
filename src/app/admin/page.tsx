@@ -13,6 +13,8 @@ import { AdminHeader } from './components/AdminHeader';
 import { VideoPlayerPanel } from './components/VideoPlayerPanel';
 import { RawScriptEditor } from './components/RawScriptEditor';
 import { SentenceListEditor } from './components/SentenceListEditor';
+import { SessionCreator } from './components/SessionCreator';
+import { LearningSession } from '@/types';
 import YouTubePlayer from '@/components/YouTubePlayer';
 import { createClient } from '@/utils/supabase/client';
 
@@ -45,7 +47,9 @@ function AdminPageContent() {
         setSentences,
         updateSentenceTime,
         updateSentenceText,
-        deleteSentence
+        deleteSentence,
+        splitSentence,
+        mergeWithPrevious
     } = useSentenceEditor([]);
     const [player, setPlayer] = useState<YT.Player | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
@@ -56,7 +60,21 @@ function AdminPageContent() {
     const [isDraftSaving, setIsDraftSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
+    // Session Creation State
+    const [createdSessions, setCreatedSessions] = useState<LearningSession[]>([]);
+    const [showSessionCreator, setShowSessionCreator] = useState(false);
+
     const getVideoId = () => extractVideoId(youtubeUrl);
+    // ... (keep existing) ...
+
+    const handleStartSessionCreation = () => {
+        setShowSessionCreator(true);
+        // Optional: Scroll to it?
+        setTimeout(() => {
+            const element = document.getElementById('session-creator-section');
+            element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    };
 
     const handlePlayerReady = (playerInstance: YT.Player) => {
         setPlayer(playerInstance);
@@ -89,6 +107,18 @@ function AdminPageContent() {
                     // Reconstruct raw script if possible, or leave empty
                     setLastSyncTime(data.snippet_end_time || 0);
                     console.log('Loaded video for editing:', data.title);
+
+                    // Fetch existing learning sessions
+                    const { data: sessionData } = await supabase
+                        .from('learning_sessions')
+                        .select('*')
+                        .eq('source_video_id', editId)
+                        .order('order_index', { ascending: true });
+
+                    if (sessionData) {
+                        // Map DB sessions to LearningSession type (if needed, but structure matches)
+                        setCreatedSessions(sessionData as LearningSession[]);
+                    }
                 } else {
                     console.error('Video not found for editing');
                 }
@@ -226,7 +256,11 @@ function AdminPageContent() {
         }
     };
 
-
+    const handlePlayFrom = (time: number) => {
+        if (!player) return;
+        player.seekTo(time, true);
+        player.playVideo();
+    };
 
     // --- Sync Logic ---
     const handleSyncTrigger = () => {
@@ -336,18 +370,35 @@ function AdminPageContent() {
 
             if (dbError) throw dbError;
 
+            // 2. Save Sessions via API
+            if (createdSessions.length > 0) {
+                const sessionsResponse = await fetch('/api/admin/learning-sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_video_id: videoId,
+                        sessions: createdSessions
+                    })
+                });
+
+                if (!sessionsResponse.ok) {
+                    throw new Error('Failed to save learning sessions');
+                }
+            }
+
             setSuccess(true);
 
             // Clear draft
             await supabase.from('admin_drafts').delete().eq('key', DRAFT_KEY);
 
-            // If editing, maybe stay on page? If new, maybe clear?
+            // If editing, may be stay on page? If new, maybe clear?
             setTimeout(() => {
                 setSuccess(false);
                 if (!editId) {
                     setRawScript('');
                     setYoutubeUrl('');
                     setSentences([]);
+                    setCreatedSessions([]);
                     setLastSyncTime(0);
                 }
             }, 2000);
@@ -398,7 +449,7 @@ function AdminPageContent() {
                         onTimeUpdate={handleTimeUpdate}
                     />
 
-                    <div className="w-[55%] flex flex-col gap-4 min-h-0">
+                    <div className="w-[55%] flex flex-col gap-4 min-h-0 overflow-y-auto pb-10">
                         <RawScriptEditor
                             rawScript={rawScript}
                             loading={loading}
@@ -418,7 +469,22 @@ function AdminPageContent() {
                             onUpdateTime={updateSentenceTime}
                             onUpdateText={updateSentenceText}
                             onDelete={deleteSentence}
+                            onSplit={splitSentence}
+                            onMergeWithPrevious={mergeWithPrevious}
+                            onPlayFrom={handlePlayFrom}
+                            onStartSessionCreation={handleStartSessionCreation}
                         />
+
+                        {showSessionCreator && sentences.length > 0 && (
+                            <div id="session-creator-section">
+                                <SessionCreator
+                                    sentences={sentences}
+                                    videoId={getVideoId() || ''}
+                                    onSessionsChange={setCreatedSessions}
+                                    initialSessions={createdSessions}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

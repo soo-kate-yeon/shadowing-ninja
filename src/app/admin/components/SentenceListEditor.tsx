@@ -10,6 +10,10 @@ interface SentenceListEditorProps {
     onUpdateTime: (id: string, field: 'startTime' | 'endTime', value: number) => void;
     onUpdateText: (id: string, field: 'text' | 'translation', value: string) => void;
     onDelete: (index: number) => void;
+    onSplit: (index: number, cursorPosition: number) => void;
+    onMergeWithPrevious: (index: number) => void;
+    onPlayFrom: (time: number) => void;
+    onStartSessionCreation: () => void;
 }
 
 export function SentenceListEditor({
@@ -20,7 +24,11 @@ export function SentenceListEditor({
     onAutoTranslate,
     onUpdateTime,
     onUpdateText,
-    onDelete
+    onDelete,
+    onSplit,
+    onMergeWithPrevious,
+    onPlayFrom,
+    onStartSessionCreation
 }: SentenceListEditorProps) {
     return (
         <div className="flex-1 bg-surface rounded-2xl border border-secondary-200 shadow-sm overflow-hidden flex flex-col relative">
@@ -41,6 +49,14 @@ export function SentenceListEditor({
                 >
                     Auto Translate
                 </button>
+                <div className="flex-1" />
+                <button
+                    onClick={onStartSessionCreation}
+                    disabled={sentences.length === 0}
+                    className="bg-black hover:bg-neutral-800 text-white px-3 py-1 rounded text-[10px] uppercase tracking-wide transition-colors flex items-center gap-1 shadow-sm"
+                >
+                    Next: Create Sessions →
+                </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 pt-10 space-y-3">
                 {sentences.map((s, idx) => (
@@ -51,6 +67,9 @@ export function SentenceListEditor({
                         onUpdateTime={onUpdateTime}
                         onUpdateText={onUpdateText}
                         onDelete={onDelete}
+                        onSplit={onSplit}
+                        onMergeWithPrevious={onMergeWithPrevious}
+                        onPlayFrom={onPlayFrom}
                     />
                 ))}
                 {sentences.length === 0 && (
@@ -59,6 +78,6 @@ export function SentenceListEditor({
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
