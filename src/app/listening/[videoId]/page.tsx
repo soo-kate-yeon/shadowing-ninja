@@ -227,10 +227,6 @@ export default function ListeningPage() {
             <main className="flex-1 flex gap-6 p-8 h-[calc(100vh-80px)]">
                 {/* Left: Video Player */}
                 <div className="w-1/2 h-full flex flex-col">
-                    <h2 className="text-2xl font-bold text-neutral-900 leading-relaxed mb-6 tracking-tight">
-                        스크립트 토글로 학습 방식을 선택하세요
-                    </h2>
-
                     <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
                         <YouTubePlayer
                             videoId={videoId}

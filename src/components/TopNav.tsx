@@ -11,7 +11,7 @@ export default function TopNav() {
     const isArchiveActive = pathname?.startsWith('/archive');
 
     return (
-        <header className="h-[80px] bg-surface flex items-center justify-between px-8 sticky top-0 z-10 border-b border-outline">
+        <header className="h-16 bg-surface flex items-center justify-between px-8 sticky top-0 z-10 border-b border-outline">
             <nav className="flex items-center gap-8">
                 <Link
                     href="/home"

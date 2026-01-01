@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { groupSentencesByMode } from '@/lib/transcript-parser';
 import { Sentence, LearningSession } from '@/types';
+import { useQuery } from '@tanstack/react-query';
 import YouTubePlayer from '@/components/YouTubePlayer';
 import { ShadowingHeader } from '@/components/shadowing/ShadowingHeader';
 import { ShadowingScriptList } from '@/components/shadowing/ShadowingScriptList';
@@ -18,10 +19,7 @@ export default function ShadowingPage() {
     const videoId = params.videoId as string;
     const sessionId = searchParams.get('sessionId');
 
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [videoData, setVideoData] = useState<any>(null);
-    const [rawSentences, setRawSentences] = useState<Sentence[]>([]);
     const [sentences, setSentences] = useState<Sentence[]>([]);
     const [mode, setMode] = useState<"sentence" | "paragraph" | "total">("sentence");
 
@@ -46,52 +44,42 @@ export default function ShadowingPage() {
         resetRecording
     } = useAudioRecorder();
 
-    useEffect(() => {
-        if (!videoId) return;
+    // Data Fetching with useQuery
+    const { data: sessionData, isLoading: isLoadingSession } = useQuery({
+        queryKey: ['session', sessionId],
+        queryFn: async () => {
+            const response = await fetch(`/api/learning-sessions?sessionId=${sessionId}`);
+            if (!response.ok) throw new Error('Session not found');
+            const result = await response.json();
+            return result.sessions?.[0] as LearningSession;
+        },
+        enabled: !!sessionId,
+        staleTime: 5 * 60 * 1000,
+    });
 
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                let data;
-                let transcriptSentences: Sentence[] = [];
+    const { data: curatedVideoData, isLoading: isLoadingVideo } = useQuery({
+        queryKey: ['video', videoId],
+        queryFn: async () => {
+            const response = await fetch(`/api/curated-videos/${videoId}`);
+            if (!response.ok) throw new Error('Failed to fetch curated video');
+            return response.json();
+        },
+        enabled: !sessionId && !!videoId,
+        staleTime: 5 * 60 * 1000,
+    });
 
-                if (sessionId) {
-                    const response = await fetch(`/api/learning-sessions?sessionId=${sessionId}`);
-                    if (!response.ok) throw new Error('Session not found');
-                    const result = await response.json();
-                    const session = result.sessions?.[0] as LearningSession;
+    const isLoading = sessionId ? isLoadingSession : isLoadingVideo;
 
-                    if (!session) throw new Error('Session not found');
+    // Derived video data and sentences
+    const videoData = sessionId ? (sessionData ? {
+        title: sessionData.title,
+        snippet_start_time: sessionData.start_time,
+        snippet_end_time: sessionData.end_time,
+        snippet_duration: sessionData.duration
+    } : null) : curatedVideoData;
 
-                    data = {
-                        title: session.title,
-                        snippet_start_time: session.start_time,
-                        snippet_end_time: session.end_time,
-                        snippet_duration: session.duration
-                    };
-                    transcriptSentences = session.sentences || [];
-                } else {
-                    const response = await fetch(`/api/curated-videos/${videoId}`);
-                    if (!response.ok) throw new Error('Failed to fetch curated video');
-                    data = await response.json();
-                    transcriptSentences = data.transcript || [];
-                }
+    const rawSentences = sessionId ? (sessionData?.sentences || []) : (curatedVideoData?.transcript || []);
 
-                setVideoData(data);
-                setRawSentences(transcriptSentences);
-                setSentences(groupSentencesByMode(transcriptSentences, mode));
-            } catch (err) {
-                console.error(err);
-                setError('Failed to load session');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [videoId, sessionId]);
-
-    // Re-group when mode changes
     useEffect(() => {
         if (rawSentences.length > 0) {
             setSentences(groupSentencesByMode(rawSentences, mode));
@@ -166,7 +154,7 @@ export default function ShadowingPage() {
         await startRecording();
     };
 
-    if (loading) {
+    if (isLoading) {
         return <div className="flex items-center justify-center h-screen bg-secondary-200 text-secondary-500">Loading Shadowing...</div>;
     }
 

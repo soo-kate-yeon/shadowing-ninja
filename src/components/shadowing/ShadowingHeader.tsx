@@ -21,11 +21,11 @@ export function ShadowingHeader({ title, onBack, onPrevStep, onNextStep }: Shado
     };
 
     return (
-        <div className="h-[80px] bg-secondary-300 border-b border-secondary-500/30 flex items-center justify-between px-8 shrink-0 relative z-10">
-            <div className="flex items-center gap-8 overflow-hidden">
+        <div className="h-16 bg-secondary-300 border-b border-secondary-500/30 flex items-center justify-between px-8 shrink-0 relative z-10 transition-all duration-300 ease-in-out">
+            <div className="flex items-center gap-4 overflow-hidden">
                 <button
                     onClick={handleBack}
-                    className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-xl text-body-large font-medium transition-colors shrink-0"
+                    className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-xl text-body-medium font-medium transition-colors shrink-0"
                 >
                     학습 종료
                 </button>
@@ -34,19 +34,16 @@ export function ShadowingHeader({ title, onBack, onPrevStep, onNextStep }: Shado
                 </h1>
             </div>
 
-            <div className="flex gap-3 shrink-0">
+            <div className="flex items-center bg-secondary-100 p-1 rounded-xl">
                 <button
                     onClick={onPrevStep}
-                    className="bg-secondary-100 hover:bg-secondary-300 text-primary-500 px-4 py-2 rounded-xl text-body-large font-medium transition-colors"
+                    className="px-4 py-1.5 rounded-sm text-sm font-medium transition-all text-neutral-500 hover:text-neutral-900"
                 >
-                    이전 단계
+                    리스닝 모드
                 </button>
-                <button
-                    onClick={onNextStep}
-                    className="bg-secondary-100 hover:bg-secondary-300 text-primary-500 px-4 py-2 rounded-xl text-body-large font-medium transition-colors"
-                >
-                    다음 단계
-                </button>
+                <div className="px-4 py-1.5 rounded-sm text-sm font-bold bg-white text-primary-500 transition-all">
+                    쉐도잉 모드
+                </div>
             </div>
         </div>
     );

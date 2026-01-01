@@ -10,6 +10,7 @@ interface SessionCardProps {
     isEditMode?: boolean;
     isSelected?: boolean;
     onToggleSelection?: () => void;
+    onMouseEnter?: () => void;
 }
 
 export default function SessionCard({
@@ -22,11 +23,13 @@ export default function SessionCard({
     isEditMode = false,
     isSelected = false,
     onToggleSelection,
+    onMouseEnter,
 }: SessionCardProps) {
     return (
         <div
             className={`flex items-start gap-4 w-full transition-all ${isEditMode ? 'cursor-pointer' : ''}`}
             onClick={isEditMode ? onToggleSelection : undefined}
+            onMouseEnter={onMouseEnter}
         >
             {/* Edit Checkbox */}
             {isEditMode && (
@@ -64,7 +67,7 @@ export default function SessionCard({
                     <h3 className="text-lg font-semibold text-black line-clamp-2 leading-tight mb-1 font-['SF_Pro_Display']">
                         {title}
                     </h3>
-                    <p className="text-lg font-medium text-[#767676]">
+                    <p className="text-sm font-medium text-[#767676]">
                         {totalSentences}문장 · {timeLeft.split(':')[0]}분
                     </p>
                 </div>
@@ -73,9 +76,9 @@ export default function SessionCard({
                 {!isEditMode && (
                     <button
                         onClick={onClick}
-                        className="bg-neutral-200 hover:bg-neutral-300 transition-colors rounded-xl py-2 px-2.5 flex items-center justify-center w-fit"
+                        className="bg-secondary-100 hover:bg-secondary-200 transition-colors rounded-xl py-2 px-2.5 flex items-center justify-center w-fit"
                     >
-                        <span className="text-sm font-medium text-[#3f3f3f]">계속 학습하기</span>
+                        <span className="text-sm font-medium text-primary-500">계속 학습하기</span>
                     </button>
                 )}
             </div>
