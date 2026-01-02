@@ -22,7 +22,7 @@ export default function ProfilePage() {
       } = await supabase.auth.getUser();
       setUser(user);
       if (!user) {
-        router.push("/login");
+        router.push("/home");
       }
     };
     getUser();
@@ -30,7 +30,7 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/signup");
+    router.push("/home");
     router.refresh();
   };
 
