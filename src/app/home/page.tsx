@@ -10,6 +10,7 @@ import TopNav from "@/components/TopNav";
 import VideoCard from "@/components/VideoCard";
 import { CuratedVideo } from "@/types";
 import { usePrefetch } from "@/hooks/usePrefetch";
+import GuestViewOverlay from "@/components/home/GuestViewOverlay";
 
 export default function HomePage() {
   const router = useRouter();
@@ -34,10 +35,22 @@ export default function HomePage() {
     setIsMounted(true);
   }, []);
 
+  // Auth state for guest view
+  const [user, setUser] = useState<any>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
   // Fetch learning sessions
   useEffect(() => {
-    const fetchSessions = async () => {
+    const checkAuthAndFetch = async () => {
       try {
+        const { createClient } = await import("@/utils/supabase/client");
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setUser(user);
+        setIsAuthLoading(false);
+
         setLoading(true);
         const params = new URLSearchParams();
         if (selectedDifficulty !== "all") {
@@ -56,7 +69,7 @@ export default function HomePage() {
       }
     };
 
-    fetchSessions();
+    checkAuthAndFetch();
   }, [selectedDifficulty]);
 
   // Derived State
@@ -64,9 +77,11 @@ export default function HomePage() {
     (a, b) => b.lastAccessedAt - a.lastAccessedAt,
   );
 
-  if (!isMounted) {
+  if (!isMounted || isAuthLoading) {
     return null;
   }
+
+  const isGuest = !user;
 
   return (
     <div className="min-h-screen bg-secondary-200 flex flex-col">
@@ -75,7 +90,7 @@ export default function HomePage() {
       <main className="flex-1 max-w-[1920px] w-full mx-auto p-8 flex flex-col gap-6 h-[calc(100vh-64px)] overflow-hidden">
         <div className="flex flex-row gap-8 items-start h-full">
           {/* Left Column: Learning Sessions */}
-          <section className="flex flex-col gap-4 w-1/2 h-full min-h-0">
+          <section className="flex flex-col gap-4 w-1/2 h-full min-h-0 relative">
             <div className="flex flex-col gap-4 shrink-0">
               <h2 className="text-2xl font-semibold text-black">학습할 영상</h2>
 
@@ -147,12 +162,14 @@ export default function HomePage() {
                       duration={`${Math.floor(session.duration / 60)}:${String(Math.floor(session.duration % 60)).padStart(2, "0")}`}
                       description={session.description || ""}
                       sentenceCount={session.sentence_ids?.length || 0}
-                      onClick={() =>
+                      onClick={() => {
+                        if (isGuest) return;
                         router.push(
                           `/listening/${session.source_video_id}?sessionId=${session.id}`,
-                        )
-                      }
+                        );
+                      }}
                       onMouseEnter={() => {
+                        if (isGuest) return;
                         prefetchVideo(session.source_video_id);
                         prefetchSession(session.id);
                       }}
@@ -161,10 +178,28 @@ export default function HomePage() {
                 </div>
               )}
             </div>
+
+            {isGuest && (
+              <div className="absolute inset-0 z-10 -m-4 p-4 pointer-events-none">
+                <div className="w-full h-full relative pointer-events-auto">
+                  <GuestViewOverlay />
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Right Column: Recent Sessions */}
-          <section className="bg-secondary-50 rounded-3xl p-6 h-full w-1/2 flex flex-col border border-secondary-300/50">
+          <section className="bg-secondary-50 rounded-3xl p-6 h-full w-1/2 flex flex-col border border-secondary-300/50 relative overflow-hidden">
+            {isGuest && (
+              <div className="absolute inset-0 z-10 bg-secondary-50/60 backdrop-blur-[2px] flex items-center justify-center p-8 text-center">
+                <div className="bg-white/80 backdrop-blur p-6 rounded-2xl shadow-sm border border-secondary-200 w-full max-w-sm">
+                  <p className="text-secondary-600 font-medium">
+                    로그인하면 최근 학습했던 영상을 여기서 바로 이어볼 수
+                    있어요!
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between relative mb-4 shrink-0">
               <h2 className="text-xl font-semibold text-black">
                 학습 중인 영상
