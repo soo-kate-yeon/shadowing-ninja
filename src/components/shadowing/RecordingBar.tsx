@@ -30,12 +30,15 @@ export function RecordingBar({
     playbackProgress = 0
 }: RecordingBarProps) {
     const formatTime = (seconds: number) => {
+        if (!isFinite(seconds) || seconds < 0) return '0:00';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const currentTime = (playbackProgress / 100) * recordingDuration;
+    const currentTime = isFinite(playbackProgress) && isFinite(recordingDuration)
+        ? (playbackProgress / 100) * recordingDuration
+        : 0;
 
     if (state === 'idle') {
         return null; // Hidden when idle
@@ -89,7 +92,7 @@ export function RecordingBar({
                             </div>
                             <div className="relative w-full h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer group">
                                 <div
-                                    className="absolute inset-y-0 left-0 bg-primary-500 rounded-full transition-all duration-100 ease-linear group-hover:bg-primary-400"
+                                    className="absolute inset-y-0 left-0 bg-primary-500 rounded-full group-hover:bg-primary-400"
                                     style={{ width: `${playbackProgress}%` }}
                                 />
                             </div>

@@ -146,11 +146,33 @@ export default function ShadowingPage() {
     }, [loopingSentenceId, player, sentences]);
 
     const handleRecordSentence = async (sentenceId: string) => {
-        // Reset previous recording if exists
-        if (recordingState !== 'idle') {
-            resetRecording();
+        // 1. 영상 재생 중지
+        if (player) {
+            player.pauseVideo();
+            setCurrentPlayingId(null);
         }
-        // Start new recording
+
+        // 2. 루프 해제
+        if (loopingSentenceId) {
+            setLoopingSentenceId(null);
+        }
+
+        // 3. 녹음 시작 (startRecording 내부에서 이전 녹음 정리)
+        await startRecording();
+    };
+
+    // 다시 녹음 핸들러 (RecordingBar에서 사용)
+    const handleReRecord = async () => {
+        // 영상 정지
+        if (player) {
+            player.pauseVideo();
+            setCurrentPlayingId(null);
+        }
+        // 루프 해제
+        if (loopingSentenceId) {
+            setLoopingSentenceId(null);
+        }
+        // 녹음 시작
         await startRecording();
     };
 
@@ -240,7 +262,7 @@ export default function ShadowingPage() {
             {/* Recording Bar */}
             <RecordingBar
                 state={recordingState}
-                onRecord={startRecording}
+                onRecord={handleReRecord}
                 onStop={stopRecording}
                 onPlay={playRecording}
                 onPause={pauseRecording}
