@@ -11,7 +11,7 @@ interface UseAudioRecorderReturn {
     playbackProgress: number;
     startRecording: () => Promise<void>;
     stopRecording: () => void;
-    playRecording: () => void;
+    playRecording: () => Promise<void>;
     pauseRecording: () => void;
     resetRecording: () => void;
 }
@@ -31,16 +31,50 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
     const startRecording = useCallback(async () => {
         try {
-            // Request microphone permission
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // 기존 재생/녹음 정리
+            if (audioElementRef.current) {
+                audioElementRef.current.pause();
+                audioElementRef.current.ontimeupdate = null;
+                audioElementRef.current.onended = null;
+                audioElementRef.current = null;
+            }
+            if (mediaRecorderRef.current?.state === 'recording') {
+                mediaRecorderRef.current.stop();
+            }
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+            }
 
-            // Determine supported mime type
-            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                ? 'audio/webm;codecs=opus'
-                : 'audio/mp4'; // Fallback for Safari if needed
+            // 상태 초기화
+            setIsPlaying(false);
+            setPlaybackProgress(0);
+
+            // Request microphone permission with quality constraints
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: 48000,
+                    channelCount: 1
+                }
+            });
+
+            // Determine supported mime type with proper fallback chain
+            const getSupportedMimeType = () => {
+                const types = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/ogg;codecs=opus',
+                    'audio/mp4;codecs=aac'
+                ];
+                return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+            };
+            const mimeType = getSupportedMimeType();
 
             // Create MediaRecorder
-            const mediaRecorder = new MediaRecorder(stream, { mimeType });
+            const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
 
@@ -92,62 +126,64 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         }
     }, []);
 
-    const playRecording = useCallback(() => {
+    const playRecording = useCallback(async () => {
         if (!audioUrl) return;
 
+        // 새 Audio 객체 생성
         if (!audioElementRef.current) {
             const audio = new Audio(audioUrl);
             audioElementRef.current = audio;
 
-            audio.onended = () => {
-                setIsPlaying(false);
-                setPlaybackProgress(0);
-                if (animationFrameRef.current) {
-                    cancelAnimationFrame(animationFrameRef.current);
-                    animationFrameRef.current = null;
+            // metadata 로드 완료 대기
+            await new Promise<void>((resolve) => {
+                audio.onloadedmetadata = () => {
+                    setDuration(audio.duration);
+                    resolve();
+                };
+                // 이미 로드된 경우 처리
+                if (audio.readyState >= 1) {
+                    setDuration(audio.duration);
+                    resolve();
+                }
+            });
+
+            // timeupdate 이벤트로 progress 업데이트 (더 안정적)
+            audio.ontimeupdate = () => {
+                if (isFinite(audio.duration) && audio.duration > 0) {
+                    const progress = (audio.currentTime / audio.duration) * 100;
+                    setPlaybackProgress(progress);
                 }
             };
 
-            audio.onloadedmetadata = () => {
-                setDuration(audio.duration);
+            audio.onended = () => {
+                setIsPlaying(false);
+                setPlaybackProgress(0);
             };
         }
 
-        // Just in case, try to play
-        const playPromise = audioElementRef.current.play();
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                setIsPlaying(true);
-            }).catch(e => console.error("Playback failed", e));
+        // 재생
+        try {
+            await audioElementRef.current.play();
+            setIsPlaying(true);
+        } catch (e) {
+            console.error("Playback failed", e);
         }
-
-        // Update progress
-        const updateProgress = () => {
-            if (audioElementRef.current && !audioElementRef.current.paused) {
-                const progress = (audioElementRef.current.currentTime / audioElementRef.current.duration) * 100;
-                setPlaybackProgress(progress);
-                animationFrameRef.current = requestAnimationFrame(updateProgress);
-            }
-        };
-        updateProgress();
     }, [audioUrl]);
 
     const pauseRecording = useCallback(() => {
         if (audioElementRef.current) {
             audioElementRef.current.pause();
             setIsPlaying(false);
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-                animationFrameRef.current = null;
-            }
         }
     }, []);
 
     const resetRecording = useCallback(() => {
-        // Stop audio playback
+        // Stop audio playback and cleanup
         if (audioElementRef.current) {
             audioElementRef.current.pause();
-            audioElementRef.current.currentTime = 0;
+            audioElementRef.current.ontimeupdate = null;
+            audioElementRef.current.onended = null;
+            audioElementRef.current = null;
         }
 
         // Stop recording if active
@@ -155,7 +191,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             mediaRecorderRef.current.stop();
         }
 
-        // Cancel any running loops
+        // Cancel any running animation frames (for recording duration)
         if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
             animationFrameRef.current = null;
