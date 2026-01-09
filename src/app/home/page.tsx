@@ -8,11 +8,13 @@ import { useStore } from "@/lib/store";
 import TopNav from "@/components/TopNav";
 import VideoCard from "@/components/VideoCard";
 import { usePrefetch } from "@/hooks/usePrefetch";
+import { useAuth } from "@/hooks/useAuth";
 import GuestViewOverlay from "@/components/home/GuestViewOverlay";
 
 export default function HomePage() {
   const router = useRouter();
   const { prefetchVideo, prefetchSession } = usePrefetch();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const sessions = useStore((state) => state.sessions);
   const removeSession = useStore((state) => state.removeSession);
 
@@ -33,28 +35,11 @@ export default function HomePage() {
     setIsMounted(true);
   }, []);
 
-  // Auth state for guest view
-  const [user, setUser] = useState<any>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-
   // Fetch learning sessions
   useEffect(() => {
-    const checkAuthAndFetch = async () => {
-      // 1. Check Auth
-      try {
-        const { createClient } = await import("@/utils/supabase/client");
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        setUser(user);
-      } catch (error) {
-        console.error("Auth check failed:", error);
-      } finally {
-        setIsAuthLoading(false);
-      }
+    const abortController = new AbortController();
 
-      // 2. Fetch Sessions
+    const fetchSessions = async () => {
       try {
         setLoading(true);
         const params = new URLSearchParams();
@@ -62,19 +47,34 @@ export default function HomePage() {
           params.append("difficulty", selectedDifficulty);
         }
 
-        const response = await fetch(`/api/learning-sessions?${params}`);
+        const response = await fetch(`/api/learning-sessions?${params}`, {
+          signal: abortController.signal,
+        });
         if (!response.ok) throw new Error("Failed to fetch sessions");
 
         const data = await response.json();
-        setLearningSessions(data.sessions || []);
+        if (!abortController.signal.aborted) {
+          setLearningSessions(data.sessions || []);
+        }
       } catch (error) {
-        console.error("Failed to load learning sessions:", error);
+        if (
+          !abortController.signal.aborted &&
+          (error as Error).name !== "AbortError"
+        ) {
+          console.error("Failed to load learning sessions:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
-    checkAuthAndFetch();
+    fetchSessions();
+
+    return () => {
+      abortController.abort();
+    };
   }, [selectedDifficulty]);
 
   // Derived State
