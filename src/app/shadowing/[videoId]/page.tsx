@@ -16,8 +16,8 @@ export default function ShadowingPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const videoId = params.videoId as string;
-  const sessionId = searchParams.get("sessionId");
+  const videoId = params?.videoId as string;
+  const sessionId = searchParams?.get("sessionId");
 
   const [error, setError] = useState<string | null>(null);
   const [sentences, setSentences] = useState<Sentence[]>([]);
