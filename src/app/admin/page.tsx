@@ -30,7 +30,7 @@ import { useSearchParams } from "next/navigation";
 function AdminPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const editId = searchParams.get("id");
+  const editId = searchParams?.get("id");
 
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
@@ -431,8 +431,14 @@ function AdminPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-secondary-200 p-8">
-      <div className="max-w-[1600px] mx-auto h-[calc(100vh-64px)] flex flex-col">
+    <div
+      className="min-h-screen overflow-auto flex flex-col"
+      style={{ backgroundColor: "#faf9f5", padding: 24 }}
+    >
+      <div
+        className="max-w-[1920px] mx-auto w-full flex flex-col"
+        style={{ gap: 24 }}
+      >
         <AdminHeader
           youtubeUrl={youtubeUrl}
           title={title}
@@ -449,27 +455,65 @@ function AdminPageContent() {
         />
 
         {transcriptFetch.error && (
-          <div className="bg-error/10 border border-error rounded-lg p-3 mb-4 shrink-0">
-            <p className="text-error text-sm">{transcriptFetch.error}</p>
+          <div
+            className="rounded-lg shrink-0"
+            style={{
+              backgroundColor: "rgba(207, 30, 41, 0.1)",
+              border: "1px solid #cf1e29",
+              padding: 12,
+            }}
+          >
+            <p className="text-sm" style={{ color: "#cf1e29" }}>
+              {transcriptFetch.error}
+            </p>
           </div>
         )}
 
         {success && (
-          <div className="bg-success/10 border border-success rounded-lg p-3 mb-4 shrink-0">
-            <p className="text-success text-sm">✅ Saved successfully!</p>
+          <div
+            className="rounded-lg shrink-0"
+            style={{
+              backgroundColor: "rgba(0, 137, 60, 0.1)",
+              border: "1px solid #00893c",
+              padding: 12,
+            }}
+          >
+            <p className="text-sm" style={{ color: "#00893c" }}>
+              ✅ Saved successfully!
+            </p>
           </div>
         )}
 
-        <div className="flex gap-4 flex-1 min-h-0">
-          <VideoPlayerPanel
-            videoId={getVideoId()}
-            currentTime={currentTime}
-            lastSyncTime={lastSyncTime}
-            onReady={handlePlayerReady}
-            onTimeUpdate={handleTimeUpdate}
-          />
+        {/* 2x2 Grid Layout */}
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: "1fr 1fr",
+            gridTemplateRows: "auto 1fr",
+            gap: 24,
+            minHeight: "calc(100vh - 200px)",
+          }}
+        >
+          {/* Row 1, Col 1: Player */}
+          <div style={{ gridRow: 1, gridColumn: 1 }}>
+            <VideoPlayerPanel
+              videoId={getVideoId()}
+              currentTime={currentTime}
+              lastSyncTime={lastSyncTime}
+              onReady={handlePlayerReady}
+              onTimeUpdate={handleTimeUpdate}
+            />
+          </div>
 
-          <div className="w-[70%] grid grid-rows-[minmax(150px,20%)_minmax(250px,35%)_minmax(350px,45%)] gap-4 min-h-0">
+          {/* Row 1, Col 2: Step 1 Raw Script - Accordion */}
+          <div
+            className="transition-all duration-500 ease-in-out flex flex-col"
+            style={{
+              gridRow: 1,
+              gridColumn: 2,
+              minHeight: sentences.length === 0 ? 600 : 200,
+            }}
+          >
             <RawScriptEditor
               rawScript={rawScript}
               loading={loading}
@@ -479,7 +523,10 @@ function AdminPageContent() {
               onRefineScript={handleRefineScript}
               scriptRef={scriptRef}
             />
+          </div>
 
+          {/* Row 2, Col 1: Step 2 Parsed Sentences */}
+          <div style={{ gridRow: 2, gridColumn: 1, minHeight: 400 }}>
             <SentenceListEditor
               sentences={sentences}
               loading={loading}
@@ -495,18 +542,30 @@ function AdminPageContent() {
               onMergeWithPrevious={mergeWithPrevious}
               onPlayFrom={handlePlayFrom}
             />
+          </div>
 
-            <div id="session-creator-section">
-              <SessionCreator
-                sentences={sentences}
-                videoId={getVideoId() || ""}
-                onSessionsChange={setCreatedSessions}
-                initialSessions={createdSessions}
-                suggestedScenes={analyzedScenes}
-              />
-            </div>
+          {/* Row 2, Col 2: Step 3 Create Sessions - Accordion */}
+          <div
+            id="session-creator-section"
+            className="transition-all duration-500 ease-in-out flex flex-col"
+            style={{
+              gridRow: 2,
+              gridColumn: 2,
+              minHeight: sentences.length > 0 ? 600 : 200,
+            }}
+          >
+            <SessionCreator
+              sentences={sentences}
+              videoId={getVideoId() || ""}
+              onSessionsChange={setCreatedSessions}
+              initialSessions={createdSessions}
+              suggestedScenes={analyzedScenes}
+            />
           </div>
         </div>
+
+        {/* Bottom padding for scroll */}
+        <div style={{ height: 24 }} />
       </div>
 
       <VideoListModal

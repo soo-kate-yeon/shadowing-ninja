@@ -13,8 +13,8 @@ export default function ListeningPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const videoId = params.videoId as string;
-  const sessionId = searchParams.get("sessionId");
+  const videoId = params?.videoId as string;
+  const sessionId = searchParams?.get("sessionId");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
