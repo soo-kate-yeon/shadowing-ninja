@@ -273,11 +273,20 @@ export function SessionCreator({
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full">
+    <div
+      className="flex flex-col h-full rounded-2xl overflow-hidden"
+      style={{
+        backgroundColor: "#f0efeb",
+        border: "1px solid #f0efeb",
+        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+        padding: 24,
+        gap: 24,
+      }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2">
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 text-sm">
+          <span className="flex items-center justify-center w-4 h-4 rounded-full bg-primary-100 text-primary-700 text-xs">
             3
           </span>
           Create Learning Sessions
@@ -347,9 +356,17 @@ export function SessionCreator({
         </div>
       )}
 
-      <div className="flex gap-6 h-[600px]">
+      <div className="flex gap-6 h-full min-h-0">
         {/* Left: Sentence Selector */}
-        <div className="w-1/2 flex flex-col gap-2 rounded-xl border border-secondary-200 bg-white overflow-hidden shadow-sm">
+        <div
+          className="w-1/2 flex flex-col rounded-xl overflow-hidden"
+          style={{
+            backgroundColor: "#ffffff",
+            border: "1px solid #f0efeb",
+            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+            gap: 8,
+          }}
+        >
           <div className="p-3 border-b border-secondary-100 bg-secondary-50 flex justify-between items-center">
             <span className="font-medium text-sm">
               Transcript ({sentences.length})
@@ -366,26 +383,29 @@ export function SessionCreator({
                   key={s.id}
                   onClick={(e) => handleSentenceClick(s.id, e)}
                   className={`
-                                        group flex gap-3 p-3 rounded-lg text-sm cursor-pointer transition-all border
+                                        group flex flex-col p-3 rounded-lg text-sm cursor-pointer transition-all border relative
                                         ${
                                           isSelected
                                             ? "bg-primary-50 border-primary-200 shadow-sm z-10"
                                             : "hover:bg-secondary-50 border-transparent hover:border-secondary-200"
                                         }
                                     `}
+                  style={{ gap: 6 }}
                 >
-                  <div className="w-12 shrink-0 text-xs font-mono text-secondary-400 pt-0.5">
-                    {Math.floor(s.startTime / 60)}:
-                    {String(Math.floor(s.startTime % 60)).padStart(2, "0")}
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-mono text-secondary-400">
+                      {Math.floor(s.startTime / 60)}:
+                      {String(Math.floor(s.startTime % 60)).padStart(2, "0")}
+                    </div>
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-primary-500 shrink-0" />
+                    )}
                   </div>
                   <div
-                    className={`flex-1 ${isSelected ? "text-secondary-900 font-medium" : "text-secondary-600"}`}
+                    className={`${isSelected ? "text-secondary-900 font-medium" : "text-secondary-600"}`}
                   >
                     {s.text}
                   </div>
-                  {isSelected && (
-                    <Check className="w-4 h-4 text-primary-500 shrink-0" />
-                  )}
                 </div>
               );
             })}
@@ -405,7 +425,16 @@ export function SessionCreator({
         {/* Right: Creator Form & List */}
         <div className="w-1/2 flex flex-col gap-6">
           {/* Creator Form */}
-          <div className="bg-white p-5 rounded-xl border border-secondary-200 shadow-sm flex flex-col gap-4">
+          <div
+            className="rounded-xl flex flex-col"
+            style={{
+              backgroundColor: "#ffffff",
+              padding: 20,
+              border: "1px solid #f0efeb",
+              boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+              gap: 16,
+            }}
+          >
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-secondary-900">
                 New Session Details
@@ -509,7 +538,20 @@ export function SessionCreator({
               createdSessions.map((session, idx) => (
                 <div
                   key={session.id}
-                  className="bg-white p-4 rounded-xl border border-secondary-200 shadow-sm flex gap-4 group hover:border-primary-200 transition-colors"
+                  className="rounded-xl flex group transition-colors"
+                  style={{
+                    backgroundColor: "#ffffff",
+                    padding: 16,
+                    border: "1px solid #f0efeb",
+                    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                    gap: 16,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "#ffc6a9";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "#f0efeb";
+                  }}
                 >
                   <div className="flex flex-col items-center justify-center gap-1 text-secondary-300">
                     <span className="text-xs font-mono">#{idx + 1}</span>

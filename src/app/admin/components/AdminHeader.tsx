@@ -30,38 +30,82 @@ export function AdminHeader({
   onLoadExisting,
 }: AdminHeaderProps) {
   return (
-    <div className="mb-4 shrink-0 flex justify-between items-center bg-surface p-4 rounded-xl shadow-sm">
+    <div
+      className="shrink-0 flex justify-between items-center rounded-xl"
+      style={{
+        height: 80,
+        backgroundColor: "#f0efeb",
+        padding: "0 24px",
+        border: "1px solid #f0efeb",
+        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+      }}
+    >
       <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-heading-3 text-secondary-900 font-bold">
+        <div className="flex items-center" style={{ gap: 12 }}>
+          <h1
+            className="font-bold"
+            style={{ fontSize: 20, color: "#0c0b09", lineHeight: 1.46 }}
+          >
             Sync Editor & Translator
           </h1>
           <button
             onClick={onLoadExisting}
-            className="text-xs bg-secondary-100 hover:bg-secondary-200 text-secondary-600 px-2 py-1 rounded border border-secondary-300 transition-colors"
+            className="text-md rounded transition-colors"
+            style={{
+              backgroundColor: "#ffffff",
+              color: "#565552",
+              padding: "4px 8px",
+              border: "1px solid #f0efeb",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#f0efeb";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#ffffff";
+            }}
           >
             📂 Load Existing
           </button>
         </div>
-        <div className="flex gap-4 text-xs text-secondary-500 items-center mt-1">
+        <div
+          className="flex text-xs items-center mt-1"
+          style={{ gap: 16, color: "#565552" }}
+        >
           <span>Video: {youtubeUrl || "None"}</span>
         </div>
       </div>
-      <div className="flex gap-4 items-center">
+      <div className="flex items-center" style={{ gap: 16 }}>
         <input
-          className="px-3 py-2 rounded-lg border border-secondary-300 w-64 text-sm"
+          className="rounded-lg text-sm"
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #f0efeb",
+            backgroundColor: "#ffffff",
+            width: 256,
+          }}
           value={youtubeUrl}
           onChange={(e) => onYoutubeUrlChange(e.target.value)}
           placeholder="YouTube URL..."
         />
         <input
-          className="px-3 py-2 rounded-lg border border-secondary-300 w-80 text-sm"
+          className="rounded-lg text-sm"
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #f0efeb",
+            backgroundColor: "#ffffff",
+            width: 320,
+          }}
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder="Video Title..."
         />
         <select
-          className="px-3 py-2 rounded-lg border border-secondary-300 text-sm"
+          className="rounded-lg text-sm"
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #f0efeb",
+            backgroundColor: "#ffffff",
+          }}
           value={difficulty}
           onChange={(e) => onDifficultyChange(e.target.value as any)}
         >
@@ -72,7 +116,25 @@ export function AdminHeader({
         <button
           onClick={onSave}
           disabled={loading || sentencesCount === 0}
-          className="bg-primary-500 hover:bg-primary-600 text-surface font-bold py-2 px-6 rounded-lg disabled:opacity-50 text-sm transition-colors"
+          className="font-bold rounded-lg text-sm transition-colors"
+          style={{
+            backgroundColor:
+              loading || sentencesCount === 0 ? "#b8b7b4" : "#b45000",
+            color: "#ffffff",
+            padding: "8px 24px",
+            opacity: loading || sentencesCount === 0 ? 0.5 : 1,
+            cursor: loading || sentencesCount === 0 ? "not-allowed" : "pointer",
+          }}
+          onMouseEnter={(e) => {
+            if (!loading && sentencesCount > 0) {
+              e.currentTarget.style.backgroundColor = "#964100";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!loading && sentencesCount > 0) {
+              e.currentTarget.style.backgroundColor = "#b45000";
+            }
+          }}
         >
           {loading ? "Processing..." : "Save & Publish"}
         </button>
