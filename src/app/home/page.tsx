@@ -40,6 +40,7 @@ export default function HomePage() {
   // Fetch learning sessions
   useEffect(() => {
     const checkAuthAndFetch = async () => {
+      // 1. Check Auth
       try {
         const { createClient } = await import("@/utils/supabase/client");
         const supabase = createClient();
@@ -47,8 +48,14 @@ export default function HomePage() {
           data: { user },
         } = await supabase.auth.getUser();
         setUser(user);
+      } catch (error) {
+        console.error("Auth check failed:", error);
+      } finally {
         setIsAuthLoading(false);
+      }
 
+      // 2. Fetch Sessions
+      try {
         setLoading(true);
         const params = new URLSearchParams();
         if (selectedDifficulty !== "all") {
